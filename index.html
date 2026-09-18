@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Instrument DNA</title><link rel="stylesheet" href="style.css"></head>
+<body><main><header><div><small>INSTRUMENT DNA · V0.1</small><h1>Extract. Map. Reconstruct. Play.</h1><p>Turn an isolated instrument performance into a playable, source-aware instrument map.</p></div><div id="midi" class="badge">MIDI: checking…</div></header>
+<section class="panel"><label>1 · Source audio <input id="file" type="file" accept="audio/*"></label><label>2 · Describe the source <input id="source" placeholder="e.g. hollow-body jazz guitar, softly picked"></label><button id="analyze">Analyze & map</button><div id="status">Load audio to begin.</div><canvas id="wave"></canvas></section>
+<section class="panel"><div class="toolbar"><b>3 · Instrument map</b><span>Audition</span><select id="mode"><option>Hybrid</option><option>Raw</option><option>Reconstructed</option></select><button id="export">Export DNA JSON</button></div><div id="keys" class="keys"></div><div id="detail">Play the screen keyboard or a connected MIDI controller.</div></section>
+</main><script type="module" src="src/app.js"></script></body></html>
