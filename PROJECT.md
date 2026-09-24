@@ -1,16 +1,15 @@
-# Instrument DNA Web
+# Instrument DNA Web 0.3
 
-Browser prototype for extracting pitch anchors from isolated instrument recordings and turning them into a playable instrument map.
+Static browser prototype. Serve with `python3 -m http.server 8000`; open localhost:8000. Run model tests with `npm test`. No build or third-party runtime dependency. Main branch is deployed by the repository's existing GitHub Pages configuration, if enabled remotely.
 
-## V0.1
-- Audio upload + waveform
-- Free-form source/instrument context
-- Experimental browser-side pitch-anchor analysis
-- Note/octave keyboard map with extraction provenance
-- Web MIDI note-on/off + velocity audition
-- Raw / Reconstructed / Hybrid audition UI foundation
-- Instrument DNA JSON export
+## Current behavior
 
-> V0.1 pitch extraction is intentionally a lightweight proof of architecture, not yet production polyphonic transcription. Next milestones add robust pitch/onset detection, real sample segmentation, articulation/timbre analysis, time-locked pitch shifting, voicing extraction and hybrid reconstruction.
+- Decode local audio, show waveform, segment isolated notes using energy gating and autocorrelation, retain the best event per pitch and select up to 1/3/6/12 anchors per octave. Three is the default target; missing recordings cannot be invented.
+- Preserve event measurements and individual anchor parameters, plus global and octave summaries. Estimate missing note parameters by interpolation between neighboring anchors and expose gap-based confidence and a suggested reference note.
+- Play imported audio slices in Hybrid/Raw modes. Raw requires an exact anchor. Hybrid uses the closest slice with playback-rate pitch shift; this remains sample audition, not physically modeled interpolation. Reconstructed uses an oscillator and modeled brightness envelope. Imported DNA Reflections contain no audio and play via the oscillator.
+- Save/load versioned JSON DNA Reflections containing source rights metadata, model hierarchy, confidence and unsupported-measurement markers. Source audio is never embedded. Edit global numeric offsets in Advanced, reset or compare original vs edited state. Main macros adjust attack, brightness and dynamics; XY Tone X affects brightness. The remaining macros and axes are stored for future mapping and currently do not change sound.
+- Recording Era low-pass presets are separate from instrument data and adjustable in amount. They are illustrative effects, not historically measured models. MIDI input and keyboard audition are supported where the browser permits MIDI.
 
-Static and GitHub Pages compatible; no build step required.
+## Boundaries and next steps
+
+Pitch segmentation expects isolated monophonic notes and can misidentify noisy/polyphonic or continuous phrases. Brightness is a zero-crossing proxy; harmonic, formant, resonance, noise-spectrum and nonlinear measurements are explicitly unsupported. No trained historical presets or claims about archive rights. Sample slots and independent follow flags are schema only; no sample-driven resonator yet. Reconstructed sound is basic oscillator synthesis; source slices are not retained in exported JSON. Next milestone: reliable windowed spectral/harmonic analysis with confidence, followed by a real excitation/resonator engine and purposeful macro mapping.
