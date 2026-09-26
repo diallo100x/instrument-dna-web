@@ -9,7 +9,7 @@ export function cropBounds(start,end,duration){
 export function cropBuffer(context,buffer,start,end){
   const range=cropBounds(start,end,buffer.duration);
   const first=Math.floor(range.start*buffer.sampleRate),last=Math.min(buffer.length,Math.ceil(range.end*buffer.sampleRate));
-  if(last-first<Math.round(buffer.sampleRate*.1))throw Error('Select at least 0.1 seconds of audio.');
+  if(last-first<Math.round(buffer.sampleRate*.05))throw Error('Select at least 0.05 seconds of audio.');
   const cropped=context.createBuffer(buffer.numberOfChannels,last-first,buffer.sampleRate);
   for(let channel=0;channel<buffer.numberOfChannels;channel++)cropped.copyToChannel(buffer.getChannelData(channel).subarray(first,last),channel);
   return cropped;

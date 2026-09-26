@@ -12,7 +12,7 @@ test('crop keeps the requested samples and rejects an empty selection',()=>{
   assert.equal(cut.length,1000);
   assert.ok([...cut.getChannelData()].every(v=>Math.abs(v-.5)<1e-6));
   assert.deepEqual(cropBounds(-4,5,3),{start:0,end:3,duration:3});
-  assert.throws(()=>cropBuffer(context,buffer,1,1.02),/at least 0.1/);
+  assert.throws(()=>cropBuffer(context,buffer,1,1.02),/at least 0.05/);
 });
 
 test('only the selected note is passed to analysis',()=>{
