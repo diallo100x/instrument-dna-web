@@ -1,7 +1,7 @@
 import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value} from './dna.js';
 import {analyzeBuffer} from './analyzer.js';
 import {decodeAudioFile} from './audio-import.js';
-import {cropBounds,cropBuffer} from './crop.js';
+import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),active=new Map(),compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
