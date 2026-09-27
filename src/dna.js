@@ -1,4 +1,4 @@
-export const VERSION='0.4.3';
+export const VERSION='0.4.4';
 export const DENSITIES=[1,3,6,12];
 export const MACROS=['Attack','Body','Brightness','Harmonics','Noise','Resonance','Dynamics','Articulation','Movement','Drive'];
 export const midiName=n=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((n%12)+12)%12]+(Math.floor(n/12)-1);

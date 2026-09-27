@@ -4,6 +4,7 @@ import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.4.3';
+import {saveComparison,loadComparison} from './comparison.js?v=0.4.4';
 const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),renderCache=new Map(),active=new Map(),detectedEvents=[],compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
@@ -17,7 +18,7 @@ function mapCandidates(){
   for(const anchor of dna.anchors)clips.set(anchor.midi,slice(anchor.start,anchor.end));
   dna.sampleSlots=dna.anchors.map(a=>({role:'attack',anchorMidi:a.midi,pitchFollow:true,formantFollow:false,resonatorFollow:false,filterFollow:false,excitesResonator:false,embedded:false}));
   refresh();
-  $('status').textContent=`${detectedEvents.filter(e=>e.enabled).length} candidate slices enabled · ${dna.anchors.length} recorded keys mapped. Listen, uncheck unwanted sounds, or adjust Capture density.`;
+  $('status').textContent=`${detectedEvents.filter(e=>e.enabled).length} candidate slices enabled · ${dna.anchors.length} distinct recorded pitches mapped. Capture ${dna.capture.density} is a maximum per octave; the other keys remain playable with the model. Review the source slices before saving.`;
 }
 function previewEvent(event){try{preview.pause();if(ctx.state!=='running')ctx.resume();const source=ctx.createBufferSource();source.buffer=slice(event.start,event.end);source.connect(ctx.destination);source.start();$('detail').textContent=`Previewing ${midiName(event.midi)} source slice at ${event.start.toFixed(2)}–${event.end.toFixed(2)} sec`;audioState('individual source slice started')}catch(e){audioState(`slice preview failed: ${e.message}`)}}
 function renderEvents(){const panel=$('eventPanel'),box=$('eventList');panel.hidden=!buffer||!detectedEvents.length;box.replaceChildren();if(panel.hidden)return;
@@ -38,17 +39,23 @@ function modeledClip(anchor,n,duration){
 function eraOutput(node){let preset=$('era').value,amount=+$('eraAmount').value;if(preset==='none'||!amount){node.connect(ctx.destination);return}let filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=20000*(1-amount)+(preset==='vintage'?3800:7500)*amount;node.connect(filter).connect(ctx.destination)}
 function play(n,v){
   const m=modelAt(dna,n);if(!m)return {error:'Analyze or load a DNA Reflection first'};
-  const exact=clips.has(n),anchor=nearest(n),mode=$('mode').value,duration=Number($('noteLength').value)||null;
+  const exact=clips.has(n),anchor=nearest(n),mode=$('mode').value,requestedLength=Number($('noteLength').value)||null;
+  const duration=mode==='HybridOriginal'||mode==='Raw'?null:requestedLength;
   if(mode==='Raw'&&!exact)return {error:`No recorded slice mapped to ${midiName(n)}. Try a green key or use Hybrid for the estimated model.`};
   const now=ctx.currentTime,intensity=v/127,gain=ctx.createGain();let source;
-  if(mode!=='Reconstructed'&&anchor&&clips.has(anchor.midi)&&(exact||mode==='Hybrid'&&Math.abs(anchor.midi-n)<=4&&clips.get(anchor.midi).duration>=.08)){
+  if(mode!=='Reconstructed'&&anchor&&clips.has(anchor.midi)&&(exact||mode==='HybridStretch'&&Math.abs(anchor.midi-n)<=4&&clips.get(anchor.midi).duration>=.08)){
     source=ctx.createBufferSource();
-    source.buffer=mode==='Raw'||exact&&!duration?clips.get(n):modeledClip(anchor,n,duration);
+    try{source.buffer=mode==='Raw'||exact&&!duration?clips.get(n):modeledClip(anchor,n,duration)}catch(error){
+      console.warn('Expressive rendering unavailable; using original Hybrid voice',error);
+      if(exact)source.buffer=clips.get(n);
+      else source=null;
+    }
     if(mode==='Raw'){
       gain.gain.setValueAtTime(intensity,now);source.connect(gain);gain.connect(ctx.destination);source.start(now);
       return {source,gain,anchor,exact,mode:'recorded slice',m,fixed:false};
     }
-  }else{
+  }
+  if(!source){
     source=ctx.createOscillator();let h=m.parameters.harmonicAmplitudes;
     if(Array.isArray(h)&&h.length){const real=new Float32Array(h.length+1),imag=new Float32Array(h.length+1);h.forEach((amp,i)=>imag[i+1]=amp);source.setPeriodicWave(ctx.createPeriodicWave(real,imag))}
     else source.type='sine';
@@ -97,8 +104,11 @@ $('analyze').onclick=()=>{
     $('status').textContent=detectedEvents.length?`${detectedEvents.length} note slices detected · ${dna.anchors.length} recorded keys mapped from ${range.start.toFixed(2)}–${range.end.toFixed(2)} sec. Review the list below and remove speech or wrong notes.`:'No stable isolated notes found. Try a clearer passage, adjust the note style, or record individual notes.';
   }catch(e){$('status').textContent=`Analysis failed: ${e.message}`;console.error('Instrument DNA analysis',e)}
 };
-$('export').onclick=()=>{let blob=new Blob([JSON.stringify(serializable(dna),null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='instrument-dna-reflection.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
-$('import').onchange=async e=>{try{dna=importReflection(JSON.parse(await e.target.files[0].text()));clips.clear();renderCache.clear();detectedEvents=[];buffer=null;selectionPlaying=false;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=null;preview.removeAttribute('src');$('previewWrap').hidden=true;$('cropWrap').hidden=true;$('waveControls').hidden=true;$('status').textContent=`Loaded ${dna.anchors.length} anchors. Reflection contains no audio; reconstructed audition uses the model oscillator.`;$('era').value=dna.era?.recording||'none';$('eraAmount').value=dna.era?.amount||0;$('noteLength').value=String(dna.performance?.noteLengthSeconds||'');refresh()}catch(err){$('status').textContent=`Could not load reflection: ${err.message}`}};
+$('density').onchange=()=>{dna.capture.density=Number($('density').value);if(detectedEvents.length)mapCandidates()};
+function download(data,name){const blob=new Blob([JSON.stringify(data)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('export').onclick=()=>download(serializable(dna),'instrument-dna-reflection.json');
+$('saveComparison').onclick=()=>{if(!clips.size){$('detail').textContent='Analyze source notes before saving a playable comparison.';return}try{download(saveComparison(dna,clips,$('mode').value),'instrument-dna-playable-comparison.json');$('detail').textContent='Saved a playable comparison with recorded anchor slices. Keep this file private if the source rights are unverified.'}catch(error){$('detail').textContent=`Comparison save failed: ${error.message}`}};
+$('import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>100_000_000)throw Error('Preset exceeds the 100 MB import limit');const data=JSON.parse(await file.text());let playable=data?.format==='instrument-dna-playable-comparison'?loadComparison(data,(channels,length,rate)=>ctx.createBuffer(channels,length,rate)):null;dna=playable?.dna??importReflection(data);clips.clear();renderCache.clear();if(playable)for(const [n,clip] of playable.clips)clips.set(n,clip);detectedEvents=[];buffer=null;selectionPlaying=false;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=null;preview.removeAttribute('src');$('previewWrap').hidden=true;$('cropWrap').hidden=true;$('waveControls').hidden=true;$('status').textContent=playable?`Loaded playable comparison with ${clips.size} anchor slices. Original and experimental Hybrid modes are available.`:`Loaded ${dna.anchors.length} anchors. This DNA Reflection contains no audio; playback uses the modeled oscillator.`;$('era').value=dna.era?.recording||'none';$('eraAmount').value=dna.era?.amount||0;$('noteLength').value=String(dna.performance?.noteLengthSeconds||'');$('mode').value=playable?.hybridMode||'HybridOriginal';refresh()}catch(err){$('status').textContent=`Could not load preset: ${err.message}`}};
 $('noteLength').onchange=()=>{dna.performance??={};dna.performance.noteLengthSeconds=Number($('noteLength').value)||null;renderCache.clear()};
 function renderMacros(){let box=$('macros');box.replaceChildren();for(let name of MACROS){let label=document.createElement('label'),input=document.createElement('input');label.textContent=name;input.type='range';input.min=0;input.max=1;input.step=.01;input.value=dna.macros[name]??.5;input.oninput=()=>dna.macros[name]=+input.value;label.append(input);box.append(label)}}
 function renderXY(){for(let id of ['tone','behavior']){let pad=$(id),p=dna.xy[id]||[.5,.5],dot=pad.querySelector('span');dot.style.left=`${p[0]*100}%`;dot.style.top=`${(1-p[1])*100}%`}}
