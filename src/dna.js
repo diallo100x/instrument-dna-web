@@ -1,9 +1,9 @@
-export const VERSION='0.4.1';
+export const VERSION='0.4.3';
 export const DENSITIES=[1,3,6,12];
 export const MACROS=['Attack','Body','Brightness','Harmonics','Noise','Resonance','Dynamics','Articulation','Movement','Drive'];
 export const midiName=n=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((n%12)+12)%12]+(Math.floor(n/12)-1);
 export const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
-export function emptyReflection(){return {format:'instrument-dna-reflection',version:VERSION,analyzerVersion:VERSION,created:new Date().toISOString(),classification:{name:'unspecified',family:'unknown'},provenance:[],capture:{density:3,range:null},global:{},registers:[],anchors:[],performance:{velocity:{},articulations:[],modulation:{}},sampleSlots:[],era:{instrument:null,recording:null,amount:0},macros:Object.fromEntries(MACROS.map(x=>[x,0.5])),xy:{tone:[0.5,0.5],behavior:[0.5,0.5]},extensions:{}}}
+export function emptyReflection(){return {format:'instrument-dna-reflection',version:VERSION,analyzerVersion:VERSION,created:new Date().toISOString(),classification:{name:'unspecified',family:'unknown'},provenance:[],capture:{density:3,range:null},global:{},registers:[],anchors:[],performance:{velocity:{},articulations:[],modulation:{},noteLengthSeconds:null},sampleSlots:[],era:{instrument:null,recording:null,amount:0},macros:Object.fromEntries(MACROS.map(x=>[x,0.5])),xy:{tone:[0.5,0.5],behavior:[0.5,0.5]},extensions:{}}}
 export function param(analyzed,confidence=0,unit='normalized'){return {analyzed,model:analyzed,offset:0,confidence:clamp(confidence),unit}}
 export function value(p){return (p?.model??0)+(p?.offset??0)}
 export function interpolate(a,b,t){return a+(b-a)*clamp(t)}

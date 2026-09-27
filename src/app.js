@@ -3,7 +3,8 @@ import {analyzeBuffer,selectAnchors} from './analyzer.js?v=0.4.1';
 import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
-const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),active=new Map(),detectedEvents=[],compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
+import {renderExpressiveNote} from './time-pitch.js?v=0.4.3';
+const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),renderCache=new Map(),active=new Map(),detectedEvents=[],compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
 let waveView={start:0,end:0};
@@ -12,7 +13,7 @@ function refresh(){document.querySelectorAll('.key').forEach(k=>{let n=+k.datase
 function mapCandidates(){
   const best=new Map();
   for(const event of detectedEvents.filter(e=>e.enabled)){const old=best.get(event.midi);if(!old||event.confidence.overall>old.confidence.overall)best.set(event.midi,event)}
-  dna.anchors=selectAnchors([...best.values()],dna.capture.density);buildHierarchy(dna);clips.clear();
+  dna.anchors=selectAnchors([...best.values()],dna.capture.density);buildHierarchy(dna);clips.clear();renderCache.clear();
   for(const anchor of dna.anchors)clips.set(anchor.midi,slice(anchor.start,anchor.end));
   dna.sampleSlots=dna.anchors.map(a=>({role:'attack',anchorMidi:a.midi,pitchFollow:true,formantFollow:false,resonatorFollow:false,filterFollow:false,excitesResonator:false,embedded:false}));
   refresh();
@@ -27,17 +28,25 @@ function renderEvents(){const panel=$('eventPanel'),box=$('eventList');panel.hid
     for(const content of [use,`${event.start.toFixed(2)}–${event.end.toFixed(2)} s`,note,`${midiName(event.midi)} · ${event.confidence.pitch.toFixed(2)}`,listen,dna.anchors.includes(event)?'● recorded':'—']){const td=document.createElement('td');if(content instanceof Node)td.append(content);else td.textContent=content;tr.append(td)}table.append(tr)}box.append(table);
 }
 function nearest(n){return [...dna.anchors].sort((a,b)=>Math.abs(a.midi-n)-Math.abs(b.midi-n))[0]}
+function modeledClip(anchor,n,duration){
+  const original=clips.get(anchor.midi),seconds=duration??original.duration,ratio=2**((n-anchor.midi)/12),key=`${anchor.midi}/${n}/${seconds.toFixed(3)}`;
+  if(renderCache.has(key))return renderCache.get(key);
+  const modeled=ctx.createBuffer(original.numberOfChannels,Math.max(1,Math.round(seconds*original.sampleRate)),original.sampleRate);
+  for(let channel=0;channel<original.numberOfChannels;channel++)modeled.copyToChannel(renderExpressiveNote(original.getChannelData(channel),original.sampleRate,ratio,seconds),channel);
+  renderCache.set(key,modeled);return modeled;
+}
 function eraOutput(node){let preset=$('era').value,amount=+$('eraAmount').value;if(preset==='none'||!amount){node.connect(ctx.destination);return}let filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=20000*(1-amount)+(preset==='vintage'?3800:7500)*amount;node.connect(filter).connect(ctx.destination)}
 function play(n,v){
   const m=modelAt(dna,n);if(!m)return {error:'Analyze or load a DNA Reflection first'};
-  const exact=clips.has(n),anchor=nearest(n),mode=$('mode').value;
+  const exact=clips.has(n),anchor=nearest(n),mode=$('mode').value,duration=Number($('noteLength').value)||null;
   if(mode==='Raw'&&!exact)return {error:`No recorded slice mapped to ${midiName(n)}. Try a green key or use Hybrid for the estimated model.`};
   const now=ctx.currentTime,intensity=v/127,gain=ctx.createGain();let source;
-  if(exact&&mode!=='Reconstructed'){
-    source=ctx.createBufferSource();source.buffer=clips.get(n);
+  if(mode!=='Reconstructed'&&anchor&&clips.has(anchor.midi)&&(exact||mode==='Hybrid'&&Math.abs(anchor.midi-n)<=4&&clips.get(anchor.midi).duration>=.08)){
+    source=ctx.createBufferSource();
+    source.buffer=mode==='Raw'||exact&&!duration?clips.get(n):modeledClip(anchor,n,duration);
     if(mode==='Raw'){
       gain.gain.setValueAtTime(intensity,now);source.connect(gain);gain.connect(ctx.destination);source.start(now);
-      return {source,gain,anchor,exact,mode:'recorded slice',m};
+      return {source,gain,anchor,exact,mode:'recorded slice',m,fixed:false};
     }
   }else{
     source=ctx.createOscillator();let h=m.parameters.harmonicAmplitudes;
@@ -50,11 +59,13 @@ function play(n,v){
   tone.frequency.value=450+bright*15000;
   const attack=clamp((m.parameters.attackSeconds??.02)*(1.5-dna.macros.Attack),.002,.3),sustain=clamp(intensity*(.4+dna.macros.Dynamics*.6));
   gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(sustain,now+attack);
+  if(duration){const end=now+duration,release=Math.min(.09,duration*.2);gain.gain.setValueAtTime(sustain,Math.max(now+attack,end-release));gain.gain.linearRampToValueAtTime(0,end)}
   source.connect(tone);tone.connect(gain);eraOutput(gain);source.start(now);
-  return {source,gain,anchor,exact,mode:source.buffer?'recorded slice':'estimated harmonic model',m};
+  if(duration)source.stop(now+duration+.02);
+  return {source,gain,anchor,exact,mode:source.buffer?(exact?'recorded slice':'shifted anchor with natural vibrato'):'estimated harmonic model',m,fixed:!!duration};
 }
-function noteOn(n,v,k=document.querySelector(`[data-n="${n}"]`)){try{if(ctx.state==='closed')throw Error('Audio engine closed; reload the page');preview.pause();let unlock=ctx.state==='running'?null:ctx.resume();noteOff(n,k);let voice=play(n,v);if(voice.error){$('detail').textContent=voice.error;audioState('no voice started');return}k?.classList.add('active');active.set(n,voice);$('detail').textContent=`${midiName(n)} · ${voice.mode}${voice.mode==='recorded slice'?` from ${midiName(voice.exact?n:voice.anchor.midi)}`:''} · model confidence ${voice.m.confidence.toFixed(2)}`;let message=`${voice.mode} started on ${midiName(n)}`;audioState(message);$('recommendation').textContent=voice.m.recommendation||'';unlock?.then(()=>audioState(message)).catch(e=>{audioState(`unlock failed: ${e.message}`);console.error('Instrument DNA audio unlock',e)})}catch(e){$('detail').textContent=`Playback failed: ${e.message}`;audioState('playback error');console.error('Instrument DNA playback',e)}}
-function noteOff(n,k=document.querySelector(`[data-n="${n}"]`)){k?.classList.remove('active');let voice=active.get(n);if(!voice)return;let t=ctx.currentTime;voice.gain.gain.cancelScheduledValues(t);voice.gain.gain.setTargetAtTime(.0001,t,.08);try{voice.source.stop(t+.4)}catch{}active.delete(n)}
+function noteOn(n,v,k=document.querySelector(`[data-n="${n}"]`)){try{if(ctx.state==='closed')throw Error('Audio engine closed; reload the page');preview.pause();let unlock=ctx.state==='running'?null:ctx.resume();noteOff(n,k,true);let voice=play(n,v);if(voice.error){$('detail').textContent=voice.error;audioState('no voice started');return}k?.classList.add('active');active.set(n,voice);voice.source.onended=()=>{if(active.get(n)===voice){active.delete(n);k?.classList.remove('active')}};$('detail').textContent=`${midiName(n)} · ${voice.mode}${voice.mode.includes('anchor')||voice.mode==='recorded slice'?` from ${midiName(voice.exact?n:voice.anchor.midi)}`:''} · model confidence ${voice.m.confidence.toFixed(2)}`;let message=`${voice.mode} started on ${midiName(n)}`;audioState(message);$('recommendation').textContent=voice.m.recommendation||'';unlock?.then(()=>audioState(message)).catch(e=>{audioState(`unlock failed: ${e.message}`);console.error('Instrument DNA audio unlock',e)})}catch(e){$('detail').textContent=`Playback failed: ${e.message}`;audioState('playback error');console.error('Instrument DNA playback',e)}}
+function noteOff(n,k=document.querySelector(`[data-n="${n}"]`),force=false){k?.classList.remove('active');let voice=active.get(n);if(!voice)return;if(voice.fixed&&!force)return;let t=ctx.currentTime;voice.gain.gain.cancelScheduledValues(t);voice.gain.gain.setTargetAtTime(.0001,t,.08);try{voice.source.stop(t+.4)}catch{}active.delete(n)}
 $('testSound').onclick=()=>{try{if(ctx.state==='closed')throw Error('Audio engine closed; reload the page');let unlock=ctx.state==='running'?null:ctx.resume();let source=ctx.createOscillator(),gain=ctx.createGain(),t=ctx.currentTime;source.type='sine';source.frequency.value=440;gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.22,t+.03);gain.gain.setValueAtTime(.22,t+.85);gain.gain.linearRampToValueAtTime(0,t+1);source.connect(gain).connect(ctx.destination);source.start(t);source.stop(t+1.02);let message='440 Hz test tone started for 1 second';audioState(message);$('detail').textContent='Test sound uses a direct tone and bypasses imported audio and instrument controls.';unlock?.then(()=>audioState(message)).catch(e=>{audioState(`test unlock failed: ${e.message}`);console.error('Instrument DNA test sound unlock',e)})}catch(e){audioState(`test failed: ${e.message}`);console.error('Instrument DNA test sound',e)}};
 for(let n=36;n<=84;n++){let k=document.createElement('div');k.className='key '+([1,3,6,8,10].includes(n%12)?'black':'');k.textContent=midiName(n);k.dataset.n=n;k.onpointerdown=e=>{e.preventDefault();k.setPointerCapture(e.pointerId);noteOn(n,100,k)};k.onpointerup=k.onpointercancel=()=>noteOff(n,k);$('keys').append(k)}
 let previewURL=null,importSerial=0;
@@ -68,16 +79,16 @@ $('zoomOut').onclick=()=>{if(!buffer)return;waveView=zoomView(waveView,buffer.du
 $('zoomFit').onclick=()=>{if(!buffer)return;waveView={start:0,end:buffer.duration};showView()};
 $('wavePan').oninput=()=>{if(!buffer)return;waveView=panView($('wavePan').value,waveView.end-waveView.start,buffer.duration);showView()};
 window.addEventListener('resize',()=>{if(buffer)draw()});
-function changeCrop(changed){if(!buffer)return;let start=Number($('cropStart').value),end=Number($('cropEnd').value);if(changed==='start'&&start>end)end=start;if(changed==='end'&&end<start)start=end;$('cropStart').value=start;$('cropEnd').value=end;selectionPlaying=false;preview.pause();clips.clear();detectedEvents=[];dna=emptyReflection();refresh();showCrop();$('status').textContent='Selection changed. Press Analyze selection & map to build the instrument from this passage.'}
+function changeCrop(changed){if(!buffer)return;let start=Number($('cropStart').value),end=Number($('cropEnd').value);if(changed==='start'&&start>end)end=start;if(changed==='end'&&end<start)start=end;$('cropStart').value=start;$('cropEnd').value=end;selectionPlaying=false;preview.pause();clips.clear();renderCache.clear();detectedEvents=[];dna=emptyReflection();refresh();showCrop();$('status').textContent='Selection changed. Press Analyze selection & map to build the instrument from this passage.'}
 for(let [id,target] of [['cropStart','start'],['cropEnd','end'],['startSlider','start'],['endSlider','end']])$(id).addEventListener('input',()=>{if(id.includes('Slider'))$('crop'+target[0].toUpperCase()+target.slice(1)).value=$(id).value;changeCrop(target)});
 $('fullSelection').onclick=()=>{if(!buffer)return;$('cropStart').value=0;$('cropEnd').value=buffer.duration;changeCrop('end')};
 $('playSelection').onclick=async()=>{if(!buffer)return;let r=selected();if(r.duration<.1){$('cropStatus').textContent='Select at least 0.1 seconds to preview.';return}try{preview.pause();preview.currentTime=r.start;selectionPlaying=true;await preview.play()}catch(e){selectionPlaying=false;$('previewStatus').textContent=`Preview failed: ${e.message}`}};
 preview.addEventListener('timeupdate',()=>{if(selectionPlaying&&preview.currentTime>=selected().end-.03){selectionPlaying=false;preview.pause();preview.currentTime=selected().start}});
-$('file').onchange=async e=>{let f=e.target.files[0];if(!f)return;let serial=++importSerial;buffer=null;selectionPlaying=false;$('cropWrap').hidden=true;$('waveControls').hidden=true;clips.clear();detectedEvents=[];dna=emptyReflection();refresh();$('status').textContent=`Opening ${f.name}…`;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(f);preview.src=previewURL;$('previewWrap').hidden=false;try{let decoded=await decodeAudioFile(ctx,f,message=>$('status').textContent=message);if(serial!==importSerial)return;buffer=decoded.buffer;waveView={start:0,end:buffer.duration};$('cropStart').value=0;$('cropEnd').value=Math.min(buffer.duration,10);$('cropWrap').hidden=false;$('waveControls').hidden=false;showCrop();$('status').textContent=`${f.name} · ${buffer.duration.toFixed(2)} sec · ${decoded.decoder} decode · opening ${Math.min(buffer.duration,10).toFixed(2)} sec selected; adjust the range before analysis if needed`}catch(err){if(serial!==importSerial)return;$('status').textContent=`Audio import failed: ${err.message}`;console.error('Instrument DNA audio import',err)}};
+$('file').onchange=async e=>{let f=e.target.files[0];if(!f)return;let serial=++importSerial;buffer=null;selectionPlaying=false;$('cropWrap').hidden=true;$('waveControls').hidden=true;clips.clear();renderCache.clear();detectedEvents=[];dna=emptyReflection();refresh();$('status').textContent=`Opening ${f.name}…`;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(f);preview.src=previewURL;$('previewWrap').hidden=false;try{let decoded=await decodeAudioFile(ctx,f,message=>$('status').textContent=message);if(serial!==importSerial)return;buffer=decoded.buffer;waveView={start:0,end:buffer.duration};$('cropStart').value=0;$('cropEnd').value=Math.min(buffer.duration,10);$('cropWrap').hidden=false;$('waveControls').hidden=false;showCrop();$('status').textContent=`${f.name} · ${buffer.duration.toFixed(2)} sec · ${decoded.decoder} decode · opening ${Math.min(buffer.duration,10).toFixed(2)} sec selected; adjust the range before analysis if needed`}catch(err){if(serial!==importSerial)return;$('status').textContent=`Audio import failed: ${err.message}`;console.error('Instrument DNA audio import',err)}};
 $('analyze').onclick=()=>{
   if(!buffer){$('status').textContent='Choose an audio file first.';return}
   const range=selected();if(range.duration<.1){$('status').textContent='Select at least 0.1 seconds before analyzing.';return}
-  dna=emptyReflection();dna.classification.name=$('source').value.trim()||'unspecified instrument';dna.capture.density=+$('density').value;dna.capture.analysisProfile=$('analysisProfile').value;
+  dna=emptyReflection();dna.performance.noteLengthSeconds=Number($('noteLength').value)||null;dna.classification.name=$('source').value.trim()||'unspecified instrument';dna.capture.density=+$('density').value;dna.capture.analysisProfile=$('analysisProfile').value;
   dna.provenance=[{archive:$('archive').value,itemId:$('item').value,recordingDate:$('recordingDate').value,instrument:dna.classification.name,performer:$('performer').value,rightsStatus:$('rights').value||'unverified',url:$('url').value,analysisDate:new Date().toISOString(),analyzerVersion:dna.analyzerVersion,redistributionPermitted:$('redistribute').checked,selectionStartSeconds:range.start,selectionEndSeconds:range.end}];
   try{
     const selectedAudio=cropBuffer(ctx,buffer,range.start,range.end),result=analyzeBuffer(selectedAudio,dna,dna.capture.analysisProfile);
@@ -87,7 +98,8 @@ $('analyze').onclick=()=>{
   }catch(e){$('status').textContent=`Analysis failed: ${e.message}`;console.error('Instrument DNA analysis',e)}
 };
 $('export').onclick=()=>{let blob=new Blob([JSON.stringify(serializable(dna),null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='instrument-dna-reflection.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
-$('import').onchange=async e=>{try{dna=importReflection(JSON.parse(await e.target.files[0].text()));clips.clear();detectedEvents=[];buffer=null;selectionPlaying=false;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=null;preview.removeAttribute('src');$('previewWrap').hidden=true;$('cropWrap').hidden=true;$('waveControls').hidden=true;$('status').textContent=`Loaded ${dna.anchors.length} anchors. Reflection contains no audio; reconstructed audition uses the model oscillator.`;$('era').value=dna.era?.recording||'none';$('eraAmount').value=dna.era?.amount||0;refresh()}catch(err){$('status').textContent=`Could not load reflection: ${err.message}`}};
+$('import').onchange=async e=>{try{dna=importReflection(JSON.parse(await e.target.files[0].text()));clips.clear();renderCache.clear();detectedEvents=[];buffer=null;selectionPlaying=false;preview.pause();if(previewURL)URL.revokeObjectURL(previewURL);previewURL=null;preview.removeAttribute('src');$('previewWrap').hidden=true;$('cropWrap').hidden=true;$('waveControls').hidden=true;$('status').textContent=`Loaded ${dna.anchors.length} anchors. Reflection contains no audio; reconstructed audition uses the model oscillator.`;$('era').value=dna.era?.recording||'none';$('eraAmount').value=dna.era?.amount||0;$('noteLength').value=String(dna.performance?.noteLengthSeconds||'');refresh()}catch(err){$('status').textContent=`Could not load reflection: ${err.message}`}};
+$('noteLength').onchange=()=>{dna.performance??={};dna.performance.noteLengthSeconds=Number($('noteLength').value)||null;renderCache.clear()};
 function renderMacros(){let box=$('macros');box.replaceChildren();for(let name of MACROS){let label=document.createElement('label'),input=document.createElement('input');label.textContent=name;input.type='range';input.min=0;input.max=1;input.step=.01;input.value=dna.macros[name]??.5;input.oninput=()=>dna.macros[name]=+input.value;label.append(input);box.append(label)}}
 function renderXY(){for(let id of ['tone','behavior']){let pad=$(id),p=dna.xy[id]||[.5,.5],dot=pad.querySelector('span');dot.style.left=`${p[0]*100}%`;dot.style.top=`${(1-p[1])*100}%`}}
 for(let id of ['tone','behavior']){let pad=$(id),update=e=>{let r=pad.getBoundingClientRect();dna.xy[id]=[clamp((e.clientX-r.left)/r.width),clamp(1-(e.clientY-r.top)/r.height)];renderXY()};pad.onpointerdown=e=>{pad.setPointerCapture(e.pointerId);update(e)};pad.onpointermove=e=>{if(e.buttons)update(e)};pad.onkeydown=e=>{let p=dna.xy[id];if(e.key==='ArrowRight')p[0]=clamp(p[0]+.02);else if(e.key==='ArrowLeft')p[0]=clamp(p[0]-.02);else if(e.key==='ArrowUp')p[1]=clamp(p[1]+.02);else if(e.key==='ArrowDown')p[1]=clamp(p[1]-.02);else return;e.preventDefault();renderXY()}}
