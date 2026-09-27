@@ -20,3 +20,7 @@ Pitch segmentation assumes a clearly dominant monophonic pitch; music, speech, n
 ## Audio import formats
 
 The file picker explicitly offers WAV, MP3, AAC/M4A/MP4, FLAC, Ogg Vorbis, Ogg Opus, uncompressed AIFF/AIFC, CAF and WebM. Browser-native decoding is attempted first. Lightweight, locally hosted decoders cover MP3, FLAC, Ogg Vorbis and Ogg Opus when native decoding fails; a PCM AIFF parser covers 8/16/24/32-bit AIFF and `sowt` AIFC. AAC/M4A, CAF and WebM require the browser to support the file's actual codec. Protected/DRM media, WMA and other proprietary or unusual codecs are not supported. Decode failures now report the format and keep a separate browser media preview available for troubleshooting. A preview that plays while instrument audition is silent points to the Web Audio path; silence in both suggests browser or system output configuration.
+
+## Recognition research
+
+`research/README.md` describes a separate, model-neutral evaluation workflow. It can compare the existing note detector with external tool outputs and human-reviewed labels without bundling their code, model weights, or source audio in the web product. No instrument-family classifier or automated recognition of “Pífano” is shipped yet.

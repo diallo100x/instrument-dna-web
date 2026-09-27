@@ -1,0 +1,23 @@
+{
+  "format": "instrument-dna-research-manifest",
+  "version": 1,
+  "sources": [{
+    "id": "user-pifano-reference",
+    "archive": "user-provided reference",
+    "itemId": "local-file-not-in-repository",
+    "instrument": "Pífano",
+    "performer": "unknown",
+    "recordingDate": "unknown",
+    "rightsStatus": "unverified",
+    "sourceReference": "private local file",
+    "redistributionPermitted": false
+  }],
+  "segments": [{
+    "id": "pifano-intro",
+    "sourceId": "user-pifano-reference",
+    "start": 0,
+    "end": 6.8,
+    "profile": "sustained",
+    "truth": {"annotationStatus": "pending human review"}
+  }]
+}
