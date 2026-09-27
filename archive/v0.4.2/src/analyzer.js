@@ -1,0 +1,57 @@
+import {clamp,midiName,param,buildHierarchy} from './dna.js?v=0.4.1';
+export function estimatePitch(a,p,n,sr){let best=0,score=0,min=Math.floor(sr/1800),max=Math.min(Math.floor(sr/55),n/2),peaks=[];for(let lag=min;lag<=max;lag++){let c=0,e1=0,e2=0;for(let i=0;i<n-lag;i+=2){let x=a[p+i],y=a[p+i+lag];c+=x*y;e1+=x*x;e2+=y*y}let z=c/Math.sqrt(e1*e2+1e-12);peaks.push([lag,z]);if(z>score){score=z;best=lag}}let first=peaks.find(([lag,z],i)=>i>0&&i<peaks.length-1&&z>.55&&z>=score*.98&&z>=peaks[i-1][1]&&z>=peaks[i+1][1]);return {hz:score>.55?sr/(first?.[0]??best):0,confidence:clamp((score-.55)/.45)}}
+const rms=(a,p,n)=>Math.sqrt(Array.from({length:n},(_,i)=>(a[p+i]||0)**2).reduce((x,y)=>x+y,0)/n);
+export function measureHarmonics(a,s,e,sr,hz){
+  const length=Math.min(8192,e-s),from=Math.min(e-length,s+Math.floor((e-s-length)*.4));
+  if(length<2048)return null;
+  const raw=[];
+  for(let h=1;h<=12&&h*hz<sr/2;h++){
+    let re=0,im=0;
+    for(let i=0;i<length;i++){const sample=a[from+i]*(.5-.5*Math.cos(2*Math.PI*i/(length-1))),phase=2*Math.PI*hz*h*i/sr;re+=sample*Math.cos(phase);im+=sample*Math.sin(phase)}
+    raw.push(Math.hypot(re,im));
+  }
+  const max=Math.max(...raw);
+  return max>1e-7?raw.map(x=>clamp(x/max)):null;
+}
+export function analyzeBuffer(buffer,dna,profile='sustained'){
+  const a=buffer.getChannelData(0),sr=buffer.sampleRate,win=4096,hop=512,gate=.008,frames=[],events=[];
+  const minDuration=profile==='plucked'?.09:.13,minFrames=profile==='plucked'?4:5;
+  for(let p=0;p+win<a.length;p+=hop){
+    const level=rms(a,p,win);
+    const pitch=level>gate?estimatePitch(a,p,win,sr):{hz:0,confidence:0};
+    const note=pitch.hz?Math.round(69+12*Math.log2(pitch.hz/440)):null;
+    frames.push({p,note:note>=24&&note<=108&&pitch.confidence>=(profile==='plucked'?.3:.22)?note:null,confidence:pitch.confidence,level});
+  }
+  // Ignore single-frame pitch jumps while retaining actual note boundaries.
+  const labels=frames.map((f,i)=>{
+    const neighbors=frames.slice(Math.max(0,i-2),i+3).map(x=>x.note).filter(Number.isInteger).sort((x,y)=>x-y);
+    return neighbors.length>=3?neighbors[Math.floor(neighbors.length/2)]:f.note;
+  });
+  function commit(from,to,midi){
+    const matched=frames.slice(from,to).filter(f=>f.note===midi),duration=(to-from)*hop/sr;
+    if(duration<minDuration||matched.length<minFrames||matched.length/(to-from)<.55)return;
+    const s=Math.max(0,frames[from].p-Math.round(sr*.01)),e=Math.min(a.length,frames[to-1].p+hop+Math.round(sr*.01),s+Math.round(sr*3));
+    if(e-s<sr*.08)return;
+    const slice=a.subarray(s,e),length=slice.length;let peak=0,peakAt=0,sum=0,zero=0;
+    for(let i=0;i<length;i++){let v=Math.abs(slice[i]);sum+=v*v;if(v>peak){peak=v;peakAt=i}if(i&&slice[i]*slice[i-1]<0)zero++}
+    const power=Math.sqrt(sum/length),pitchConfidence=clamp(matched.reduce((sum,f)=>sum+f.confidence,0)/matched.length*matched.length/(to-from));
+    const hz=440*2**((midi-69)/12),harmonics=measureHarmonics(a,s,e,sr,hz),brightness=clamp(zero/(length/sr)/4000),noise=clamp(brightness*.6),attackSeconds=Math.min(.2,peakAt/sr),decaySeconds=Math.min(2,length/sr-attackSeconds);
+    const confidence={pitch:pitchConfidence,harmonic:harmonics?pitchConfidence*.55:0,noise:0,transient:clamp(power*8),resonance:0,interpolation:0,overall:clamp(pitchConfidence*.65+clamp(power*8)*.35)};
+    const parameters={f0:param(hz,confidence.pitch,'Hz'),attackSeconds:param(attackSeconds,confidence.transient,'s'),decaySeconds:param(decaySeconds,confidence.transient,'s'),releaseSeconds:param(.12,0,'s'),brightness:param(brightness,.3),noise:param(noise,.2),harmonicRichness:param(clamp(1-noise),.15),resonance:param(.5,0),inharmonicity:param(0,0),level:param(power,1),zeroCrossingRate:param(zero/length,1)};
+    if(harmonics)parameters.harmonicAmplitudes=param(harmonics,confidence.harmonic);
+    events.push({midi,note:midiName(midi),start:s/sr,end:e/sr,confidence,parameters,measurements:{peak,level:power,duration:length/sr},unsupported:['spectral envelope','modal resonances','noise spectrum','nonlinear response','velocity response'],sampleRole:'attack',source:'recorded slice'});
+  }
+  let from=0;
+  for(let i=1;i<=labels.length;i++){
+    const newAttack=profile==='plucked'&&i>=6&&i-from>=Math.ceil(sr*.12/hop)&&labels[i]===labels[from]&&frames[i].level>.025&&frames[i].level>frames[i-3].level*1.75&&frames[i-3].level<frames[i-6].level*.75;
+    if(i<labels.length&&labels[i]===labels[from]&&!newAttack)continue;
+    if(labels[from]!==null)commit(from,i,labels[from]);
+    from=i;
+  }
+  // Keep every candidate available for manual review; the capture density limits mapped anchors.
+  const best=new Map();
+  for(let e of events){let old=best.get(e.midi);if(!old||e.confidence.overall>old.confidence.overall)best.set(e.midi,e)}
+  dna.anchors=selectAnchors([...best.values()],dna.capture.density);buildHierarchy(dna);
+  return {events,anchors:dna.anchors};
+}
+export function selectAnchors(events,density=3){let groups=new Map();for(let a of events){let octave=Math.floor(a.midi/12);if(!groups.has(octave))groups.set(octave,[]);groups.get(octave).push(a)}let result=[];for(let [octave,items] of groups){let remaining=[...items],selected=[];for(let i=0;i<density&&remaining.length;i++){let target=octave*12+(i+.5)*12/density;remaining.sort((a,b)=>(Math.abs(a.midi-target)-Math.abs(b.midi-target))||((b.confidence?.overall??0)-(a.confidence?.overall??0)));selected.push(remaining.shift())}result.push(...selected)}return result.sort((a,b)=>a.midi-b.midi)}

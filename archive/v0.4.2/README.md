@@ -1,0 +1,1 @@
+Archived original Hybrid build from a87fe6e (0.4.2). Open index.html through the site to analyze the source again. DNA Reflection exports exclude audio; use the current app's playable comparison export to retain clips.
