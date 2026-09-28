@@ -6,7 +6,7 @@ import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.4.3';
 import {saveComparison,loadComparison} from './comparison.js?v=0.5.0';
 import {ARTICULATIONS,buildArticulationLayers,performanceArticulation,nearestArticulationAnchor} from './articulation.js?v=0.5.0';
-import {previousHeld,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.1';
+import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.1';
 const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),layerClips=new Map(),sustainDNA=null,renderCache=new Map(),active=new Map(),held=new Map(),detectedEvents=[],compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
@@ -100,7 +100,7 @@ function stopVoice(n,fade=.06){const voice=active.get(n);if(!voice)return;const 
 function stopVoices(){for(const n of active.keys())stopVoice(n,.012);held.clear()}
 function noteOn(n,v,k=document.querySelector(`[data-n="${n}"]`)){try{
   if(ctx.state==='closed')throw Error('Audio engine closed; reload the page');preview.pause();let unlock=ctx.state==='running'?null:ctx.resume();
-  const behavior=$('voiceMode').value,prior=behavior==='legato'?[...active.keys()].at(-1):null,from=prior!==null&&prior!==n?prior:null;
+  const behavior=$('voiceMode').value,from=behavior==='legato'?transitionFrom(active,n):null;
   let voice=play(n,v,behavior==='legato'?from:null);if(voice.error){$('detail').textContent=voice.error;audioState('no voice started');return}
   if(behavior!=='poly'){
     for(const old of [...active.keys()])stopVoice(old,behavior==='legato'&&from!==null&&$('mode').value!=='Raw'?glideSeconds($('glideMs').value):.012);

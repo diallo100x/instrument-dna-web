@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyReflection,importReflection} from '../src/dna.js';
-import {previousHeld,glideSeconds,glideRatio} from '../src/voice-policy.js';
+import {previousHeld,transitionFrom,glideSeconds,glideRatio} from '../src/voice-policy.js';
 
 test('mono priority returns to the most recently held key after release',()=>{
   const held=new Map([[60,82],[64,100],[67,95]]);
@@ -12,6 +12,9 @@ test('mono priority returns to the most recently held key after release',()=>{
   assert.equal(previousHeld(held),null);
 });
 test('legato glide converts semitone distance and caps transition time',()=>{
+  assert.equal(transitionFrom(new Map(),74),null);
+  assert.equal(transitionFrom(new Map([[74,{}]]),74),null);
+  assert.equal(transitionFrom(new Map([[72,{}]]),74),72);
   assert.ok(Math.abs(glideRatio(60,72)-.5)<1e-9);
   assert.equal(glideSeconds(70),.07);
   assert.equal(glideSeconds(1000),.25);
