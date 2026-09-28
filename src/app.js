@@ -6,7 +6,7 @@ import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.4.3';
 import {saveComparison,loadComparison} from './comparison.js?v=0.5.0';
 import {ARTICULATIONS,buildArticulationLayers,performanceArticulation,nearestArticulationAnchor} from './articulation.js?v=0.5.0';
-import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.1';
+import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.1.1';
 const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),layerClips=new Map(),sustainDNA=null,renderCache=new Map(),active=new Map(),held=new Map(),detectedEvents=[],compare='B';const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
