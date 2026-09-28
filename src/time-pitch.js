@@ -1,7 +1,7 @@
 // Short-note granular resynthesis. The grain's read rate sets pitch, while its
 // source position advances in real time, so the recorded vibrato cadence is
 // retained. Waveform matching reduces phase discontinuities at grain joins.
-export function renderExpressiveNote(input,sampleRate,pitchRatio,durationSeconds){
+export function renderExpressiveNote(input,sampleRate,pitchRatio,durationSeconds,{preserveAttack=false}={}){
   if(!(input instanceof Float32Array)||!Number.isFinite(sampleRate)||sampleRate<=0||!Number.isFinite(pitchRatio)||pitchRatio<.75||pitchRatio>1.34||!Number.isFinite(durationSeconds)||durationSeconds<=0||durationSeconds>4)throw Error('Unsupported note render settings');
   const length=Math.max(1,Math.round(durationSeconds*sampleRate));
   if(input.length<Math.round(sampleRate*.08))throw Error('Source note is too short to stretch');
@@ -42,8 +42,19 @@ export function renderExpressiveNote(input,sampleRate,pitchRatio,durationSeconds
     }
   }
   for(let i=0;i<length;i++)out[i]=weights[i]>1e-5?out[i]/weights[i]:0;
+  if(preserveAttack){
+    // A mallet's initial strike is short; keep it outside the grain matching
+    // stage and crossfade into the rendered ringing body.
+    const core=Math.min(length,Math.round(sampleRate*.03)),blend=Math.min(length-core,Math.round(sampleRate*.012));
+    for(let i=0;i<core+blend;i++){
+      const direct=read(i*pitchRatio),mix=i<core?1:1-(i-core)/Math.max(1,blend);
+      out[i]=direct*mix+out[i]*(1-mix);
+    }
+  }
   // Short boundary fades eliminate clicks without discarding the recorded attack.
-  const fade=Math.min(Math.round(sampleRate*.012),Math.floor(length/8));
-  for(let i=0;i<fade;i++){out[i]*=i/fade;out[length-1-i]*=i/fade}
+  const fade=Math.min(Math.round(sampleRate*(preserveAttack?.002:.012)),Math.floor(length/8));
+  for(let i=0;i<fade;i++)out[i]*=i/fade;
+  const endFade=Math.min(Math.round(sampleRate*.012),Math.floor(length/8));
+  for(let i=0;i<endFade;i++)out[length-1-i]*=i/endFade;
   return out;
 }

@@ -27,3 +27,11 @@ test('granular rendering changes pitch and length independently',()=>{
   }
   assert.throws(()=>renderExpressiveNote(input,rate,2,1),/Unsupported/);
 });
+test('struck rendering keeps the opening mallet transient',()=>{
+  const hit=new Float32Array(rate*.5);
+  for(let i=0;i<hit.length;i++){const t=i/rate;hit[i]=Math.exp(-(((t-.007)/.0015)**2))*Math.cos(2*Math.PI*440*t)}
+  const normal=renderExpressiveNote(hit,rate,1.1,.5),struck=renderExpressiveNote(hit,rate,1.1,.5,{preserveAttack:true});
+  const peak=signal=>Math.max(...signal.subarray(0,Math.round(rate*.02)).map(Math.abs));
+  assert.ok(peak(struck)>peak(normal)*1.3);
+  assert.ok(struck.every(Number.isFinite));
+});
