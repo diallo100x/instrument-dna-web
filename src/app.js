@@ -1,11 +1,11 @@
-import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.5.4';
+import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.5.5';
 import {analyzeBuffer,selectAnchors} from './analyzer.js?v=0.5.3';
 import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.5.3';
-import {malletMapping,malletResponse,renderModeledMallet} from './mallet.js?v=0.5.4';
-import {saveComparison,loadComparison} from './comparison.js?v=0.5.4';
+import {malletMapping,malletResponse,renderModeledMallet} from './mallet.js?v=0.5.5';
+import {saveComparison,loadComparison} from './comparison.js?v=0.5.5';
 import {ARTICULATIONS,buildArticulationLayers,performanceArticulation,nearestArticulationAnchor} from './articulation.js?v=0.5.0';
 import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.2';
 import {suggestedModelName,modelFilename} from './model-name.js?v=0.5.2';
@@ -47,11 +47,11 @@ function modeledClip(anchor,n,duration,role='sustain'){
 }
 function eraOutput(node){let preset=$('era').value,amount=+$('eraAmount').value;if(preset==='none'||!amount){node.connect(ctx.destination);return}let filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=20000*(1-amount)+(preset==='vintage'?3800:7500)*amount;node.connect(filter).connect(ctx.destination)}
 function playMallet(n,v,m){
-  const mapping=malletMapping(dna.anchors,n,p=>clips.has(p)),response=malletResponse(v);
+  let mapping=malletMapping(dna.anchors,n,p=>clips.has(p));const response=malletResponse(v);
   const source=ctx.createBufferSource(),requested=Number($('noteLength').value)||null;
   if(mapping.kind==='recorded')source.buffer=clips.get(n);
-  else if(mapping.kind==='shifted')source.buffer=modeledClip(mapping.anchor,n,requested,'sustain');
-  else {const duration=requested||Math.min(3,Math.max(.45,(Number(m.parameters.decaySeconds)||1.3)*1.5));
+  else if(mapping.kind==='shifted')try{source.buffer=modeledClip(mapping.anchor,n,requested,'sustain')}catch(error){console.warn('Mallet anchor render unavailable; using modeled strike',error);mapping={...mapping,kind:'modeled'}}
+  if(!source.buffer){const duration=requested||Math.min(3,Math.max(.45,(Number(m.parameters.decaySeconds)||1.3)*1.5));
     const samples=renderModeledMallet(ctx.sampleRate,n,m.parameters,v,duration),clip=ctx.createBuffer(1,samples.length,ctx.sampleRate);clip.copyToChannel(samples,0);source.buffer=clip}
   const now=ctx.currentTime,end=now+source.buffer.duration,tone=ctx.createBiquadFilter(),gain=ctx.createGain();
   tone.type='lowpass';tone.frequency.value=response.cutoff;
@@ -60,7 +60,7 @@ function playMallet(n,v,m){
   gain.gain.setValueAtTime(peak,Math.max(now+response.attack,end-.065));gain.gain.linearRampToValueAtTime(0,end);
   source.connect(tone);tone.connect(gain);eraOutput(gain);source.start(now);source.stop(end+.02);
   const name=mapping.kind==='recorded'?'recorded mallet strike':mapping.kind==='shifted'?'shifted mallet strike':'modeled mallet strike';
-  return {source,gain,anchor:mapping.anchor,exact:mapping.kind==='recorded',mode:name,m,fixed:true,role:'sustain',peak};
+  return {source,gain,anchor:mapping.kind==='modeled'?null:mapping.anchor,exact:mapping.kind==='recorded',mode:name,m,fixed:true,role:'sustain',peak};
 }
 function play(n,v,legatoFrom=null){
   const role=performanceArticulation($('articulation').value,v,$('velocityTrill').checked,Number($('trillThreshold').value)||100);

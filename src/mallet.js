@@ -6,7 +6,7 @@ export function malletMapping(anchors,n,available=()=>true){
   const mapped=anchors.filter(a=>available(a.midi)).sort((a,b)=>Math.abs(a.midi-n)-Math.abs(b.midi-n)||a.midi-b.midi);
   if(!mapped.length)return {kind:'modeled',anchor:null};
   const anchor=mapped[0],distance=Math.abs(anchor.midi-n);
-  return {kind:distance===0?'recorded':distance<=7?'shifted':'modeled',anchor};
+  return {kind:distance===0?'recorded':distance<=5?'shifted':'modeled',anchor};
 }
 
 export function malletResponse(velocity){

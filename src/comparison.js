@@ -1,4 +1,4 @@
-import {serializable,importReflection} from './dna.js?v=0.5.4';
+import {serializable,importReflection} from './dna.js?v=0.5.5';
 
 // Playable comparison files are explicitly separate from audio-free DNA Reflections.
 const encode=bytes=>{let result='';for(let i=0;i<bytes.length;i+=16384)result+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(result)};

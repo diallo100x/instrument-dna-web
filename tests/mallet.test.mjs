@@ -7,6 +7,8 @@ test('mallet map distinguishes exact, transferred and distant strikes',()=>{
   assert.deepEqual(malletMapping(anchors,56),{kind:'recorded',anchor:anchors[1]});
   assert.deepEqual(malletMapping(anchors,60),{kind:'shifted',anchor:anchors[2]});
   assert.equal(malletMapping(anchors,80).kind,'modeled');
+  assert.equal(malletMapping([{midi:60}],65).kind,'shifted');
+  assert.equal(malletMapping([{midi:60}],66).kind,'modeled');
   assert.equal(malletMapping(anchors,56,n=>n!==56).kind,'shifted');
   assert.equal(malletMapping(anchors,56,()=>false).kind,'modeled');
 });
