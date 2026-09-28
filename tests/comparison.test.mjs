@@ -14,4 +14,8 @@ test('playable comparison retains original anchor samples and mode independently
   assert.equal(restored.hybridMode,'HybridOriginal');
   assert.deepEqual(restored.clips.get(69).getChannelData(0),original.getChannelData(0));
   assert.throws(()=>loadComparison({...data,audio:[{...data.audio[0],midi:70}]},fakeBuffer),/Invalid comparison anchor/);
+  dna.performance.layers={sustain:[dna.anchors[0]],trill:[{...dna.anchors[0],articulation:'trill'}]};
+  const layered=saveComparison(dna,new Map([[69,original]]),'HybridStretch',new Map([['trill:69',original]]));
+  const loadedLayer=loadComparison(JSON.parse(JSON.stringify(layered)),fakeBuffer);
+  assert.deepEqual(loadedLayer.layerClips.get('trill:69').getChannelData(0),original.getChannelData(0));
 });
