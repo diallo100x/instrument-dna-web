@@ -20,4 +20,6 @@ test('playable comparison retains original anchor samples and mode independently
   const layered=saveComparison(dna,new Map([[69,original]]),'HybridStretch',new Map([['trill:69',original]]));
   const loadedLayer=loadComparison(JSON.parse(JSON.stringify(layered)),fakeBuffer);
   assert.deepEqual(loadedLayer.layerClips.get('trill:69').getChannelData(0),original.getChannelData(0));
+  const mallet=saveComparison(dna,new Map([[69,original]]),'Mallet');
+  assert.equal(loadComparison(mallet,fakeBuffer).hybridMode,'Mallet');
 });

@@ -1,4 +1,4 @@
-import {serializable,importReflection} from './dna.js?v=0.5.3';
+import {serializable,importReflection} from './dna.js?v=0.5.4';
 
 // Playable comparison files are explicitly separate from audio-free DNA Reflections.
 const encode=bytes=>{let result='';for(let i=0;i<bytes.length;i+=16384)result+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(result)};
@@ -38,5 +38,5 @@ export function loadComparison(data,makeBuffer){
     const clip=makeBuffer(channels.length,channels[0].length,entry.sampleRate);
     channels.forEach((samples,i)=>clip.copyToChannel(samples,i));destination.set(key,clip);
   }
-  return {dna,clips,layerClips,hybridMode:['HybridOriginal','HybridStretch'].includes(data.hybridMode)?data.hybridMode:'HybridOriginal'};
+  return {dna,clips,layerClips,hybridMode:['HybridOriginal','HybridStretch','Mallet'].includes(data.hybridMode)?data.hybridMode:'HybridOriginal'};
 }

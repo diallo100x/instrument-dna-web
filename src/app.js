@@ -1,10 +1,11 @@
-import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.5.3';
+import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.5.4';
 import {analyzeBuffer,selectAnchors} from './analyzer.js?v=0.5.3';
 import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.5.3';
-import {saveComparison,loadComparison} from './comparison.js?v=0.5.3';
+import {malletMapping,malletResponse,renderModeledMallet} from './mallet.js?v=0.5.4';
+import {saveComparison,loadComparison} from './comparison.js?v=0.5.4';
 import {ARTICULATIONS,buildArticulationLayers,performanceArticulation,nearestArticulationAnchor} from './articulation.js?v=0.5.0';
 import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.2';
 import {suggestedModelName,modelFilename} from './model-name.js?v=0.5.2';
@@ -13,7 +14,7 @@ const frequency=n=>440*2**((n-69)/12);
 function slice(start,end){return cropBuffer(ctx,buffer,start,end)}
 let waveView={start:0,end:0};
 function draw(){if(!buffer)return;let c=$('wave'),d=window.devicePixelRatio||1;c.width=Math.max(1,Math.round(c.clientWidth*d));c.height=Math.max(1,Math.round(c.clientHeight*d));let x=c.getContext('2d'),a=buffer.getChannelData(0),first=Math.floor(waveView.start*buffer.sampleRate),last=Math.min(a.length,Math.ceil(waveView.end*buffer.sampleRate)),step=Math.max(1,Math.ceil((last-first)/c.width)),mid=c.height/2;x.clearRect(0,0,c.width,c.height);x.beginPath();for(let i=0;i<c.width;i++){let mn=1,mx=-1,at=first+i*step;for(let j=at;j<Math.min(last,at+step);j++){let q=a[j]||0;mn=Math.min(mn,q);mx=Math.max(mx,q)}if(mn>mx)mn=mx=0;x.moveTo(i,mid+mn*mid);x.lineTo(i,mid+mx*mid)}x.strokeStyle='#e7b568';x.stroke()}
-function refresh(){document.querySelectorAll('.key').forEach(k=>{let n=+k.dataset.n;k.classList.toggle('extracted',clips.has(n));k.classList.toggle('reconstructed',!clips.has(n)&&!!modelAt(dna,n))});$('expert').replaceChildren();let table=document.createElement('table');table.innerHTML='<tr><th>Anchor</th><th>Pitch confidence</th><th>Attack</th><th>Brightness</th><th>Slice available</th></tr>';for(let a of dna.anchors){let tr=document.createElement('tr');for(let cell of [midiName(a.midi),(a.confidence?.pitch??0).toFixed(2),(a.parameters?.attackSeconds?.analyzed??0).toFixed(3),(a.parameters?.brightness?.analyzed??0).toFixed(2),clips.has(a.midi)?'yes':'no']){let td=document.createElement('td');td.textContent=cell;tr.append(td)}table.append(tr)}$('expert').append(table);renderEvents();renderAdvanced();renderMacros();renderXY()}
+function refresh(){const mallet=dna.capture?.analysisProfile==='struck'&&$('mode').value==='Mallet';$('malletLegend').hidden=!mallet;$('screenVelocityWrap').hidden=!mallet;document.querySelectorAll('.key').forEach(k=>{let n=+k.dataset.n;k.classList.toggle('extracted',clips.has(n));k.classList.toggle('reconstructed',!clips.has(n)&&!!modelAt(dna,n));k.classList.toggle('mallet-shifted',mallet&&malletMapping(dna.anchors,n,p=>clips.has(p)).kind==='shifted');k.classList.toggle('mallet-modeled',mallet&&malletMapping(dna.anchors,n,p=>clips.has(p)).kind==='modeled')});$('expert').replaceChildren();let table=document.createElement('table');table.innerHTML='<tr><th>Anchor</th><th>Pitch confidence</th><th>Attack</th><th>Brightness</th><th>Slice available</th></tr>';for(let a of dna.anchors){let tr=document.createElement('tr');for(let cell of [midiName(a.midi),(a.confidence?.pitch??0).toFixed(2),(a.parameters?.attackSeconds?.analyzed??0).toFixed(3),(a.parameters?.brightness?.analyzed??0).toFixed(2),clips.has(a.midi)?'yes':'no']){let td=document.createElement('td');td.textContent=cell;tr.append(td)}table.append(tr)}$('expert').append(table);renderEvents();renderAdvanced();renderMacros();renderXY()}
 function mapCandidates(){stopVoices();
   const best=new Map();
   for(const event of detectedEvents.filter(e=>e.enabled)){const old=best.get(event.midi);if(!old||event.confidence.overall>old.confidence.overall)best.set(event.midi,event)}
@@ -45,11 +46,28 @@ function modeledClip(anchor,n,duration,role='sustain'){
   renderCache.set(key,modeled);return modeled;
 }
 function eraOutput(node){let preset=$('era').value,amount=+$('eraAmount').value;if(preset==='none'||!amount){node.connect(ctx.destination);return}let filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=20000*(1-amount)+(preset==='vintage'?3800:7500)*amount;node.connect(filter).connect(ctx.destination)}
+function playMallet(n,v,m){
+  const mapping=malletMapping(dna.anchors,n,p=>clips.has(p)),response=malletResponse(v);
+  const source=ctx.createBufferSource(),requested=Number($('noteLength').value)||null;
+  if(mapping.kind==='recorded')source.buffer=clips.get(n);
+  else if(mapping.kind==='shifted')source.buffer=modeledClip(mapping.anchor,n,requested,'sustain');
+  else {const duration=requested||Math.min(3,Math.max(.45,(Number(m.parameters.decaySeconds)||1.3)*1.5));
+    const samples=renderModeledMallet(ctx.sampleRate,n,m.parameters,v,duration),clip=ctx.createBuffer(1,samples.length,ctx.sampleRate);clip.copyToChannel(samples,0);source.buffer=clip}
+  const now=ctx.currentTime,end=now+source.buffer.duration,tone=ctx.createBiquadFilter(),gain=ctx.createGain();
+  tone.type='lowpass';tone.frequency.value=response.cutoff;
+  const peak=response.gain*(.5+dna.macros.Dynamics*.5);
+  gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(peak,now+response.attack);
+  gain.gain.setValueAtTime(peak,Math.max(now+response.attack,end-.065));gain.gain.linearRampToValueAtTime(0,end);
+  source.connect(tone);tone.connect(gain);eraOutput(gain);source.start(now);source.stop(end+.02);
+  const name=mapping.kind==='recorded'?'recorded mallet strike':mapping.kind==='shifted'?'shifted mallet strike':'modeled mallet strike';
+  return {source,gain,anchor:mapping.anchor,exact:mapping.kind==='recorded',mode:name,m,fixed:true,role:'sustain',peak};
+}
 function play(n,v,legatoFrom=null){
   const role=performanceArticulation($('articulation').value,v,$('velocityTrill').checked,Number($('trillThreshold').value)||100);
   const mode=$('mode').value,layered=mode!=='Raw'&&(role!=='sustain'||!!dna.performance?.layers?.trill?.length||ARTICULATIONS.slice(2).some(name=>dna.performance?.layers?.[name]?.length));
   const layer=dna.performance?.layers?.[role]||[],base=role==='sustain'&&sustainDNA?sustainDNA:dna,m=modelAt(base,n)||modelAt(dna,n);
   if(!m)return {error:'Analyze or load a DNA Reflection first'};
+  if(mode==='Mallet')return dna.capture?.analysisProfile==='struck'?playMallet(n,v,m):{error:'Mallet audition requires a Struck / mallet model.'};
   if(layered&&role!=='sustain'&&!layer.length)return {error:`Tag at least one ${role} source slice before auditioning this articulation.`};
   const anchor=layered?nearestArticulationAnchor(layer,n):nearest(n),exact=layered?!!anchor&&anchor.midi===n&&!!roleClip(anchor,role):clips.has(n),requestedLength=Number($('noteLength').value)||null;
   const duration=mode==='HybridOriginal'||mode==='Raw'?null:requestedLength;
@@ -108,14 +126,14 @@ function noteOn(n,v,k=document.querySelector(`[data-n="${n}"]`)){try{
   }else stopVoice(n,.012);
   held.delete(n);held.set(n,v);k?.classList.add('active');active.set(n,voice);
   voice.source.onended=()=>{if(voice.modulation)try{voice.modulation.stop()}catch{}if(active.get(n)===voice){active.delete(n);k?.classList.remove('active')}};
-  $('detail').textContent=`${midiName(n)} · ${voice.mode}${voice.anchor&&(voice.mode.includes('anchor')||voice.mode.startsWith('recorded'))?` from ${midiName(voice.anchor.midi)}`:''}${from!==null&&behavior==='legato'?' · legato transition':''} · model confidence ${voice.m.confidence.toFixed(2)}`;
+  $('detail').textContent=`${midiName(n)} · ${voice.mode}${voice.anchor&&(voice.mode.includes('anchor')||voice.mode.includes('mallet strike')||voice.mode.startsWith('recorded'))?` from ${midiName(voice.anchor.midi)}`:''}${from!==null&&behavior==='legato'?' · legato transition':''} · model confidence ${voice.m.confidence.toFixed(2)}`;
   let message=`${voice.mode} started on ${midiName(n)}${from!==null&&behavior==='legato'?` · legato from ${midiName(from)}`:''}`;audioState(message);$('recommendation').textContent=voice.m.recommendation||'';unlock?.then(()=>audioState(message)).catch(e=>{audioState(`unlock failed: ${e.message}`);console.error('Instrument DNA audio unlock',e)})
 }catch(e){$('detail').textContent=`Playback failed: ${e.message}`;audioState('playback error');console.error('Instrument DNA playback',e)}}
 function noteOff(n,k=document.querySelector(`[data-n="${n}"]`)){held.delete(n);const voice=active.get(n);if(!voice){k?.classList.remove('active');return}if($('voiceMode').value!=='poly'){
   const previous=previousHeld(held);if(previous){noteOn(previous[0],previous[1]);return}
 }if(voice.fixed){k?.classList.remove('active');return}stopVoice(n,.08)}
 $('testSound').onclick=()=>{try{if(ctx.state==='closed')throw Error('Audio engine closed; reload the page');let unlock=ctx.state==='running'?null:ctx.resume();let source=ctx.createOscillator(),gain=ctx.createGain(),t=ctx.currentTime;source.type='sine';source.frequency.value=440;gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.22,t+.03);gain.gain.setValueAtTime(.22,t+.85);gain.gain.linearRampToValueAtTime(0,t+1);source.connect(gain).connect(ctx.destination);source.start(t);source.stop(t+1.02);let message='440 Hz test tone started for 1 second';audioState(message);$('detail').textContent='Test sound uses a direct tone and bypasses imported audio and instrument controls.';unlock?.then(()=>audioState(message)).catch(e=>{audioState(`test unlock failed: ${e.message}`);console.error('Instrument DNA test sound unlock',e)})}catch(e){audioState(`test failed: ${e.message}`);console.error('Instrument DNA test sound',e)}};
-for(let n=36;n<=96;n++){let k=document.createElement('div');k.className='key '+([1,3,6,8,10].includes(n%12)?'black':'');k.textContent=midiName(n);k.dataset.n=n;k.onpointerdown=e=>{e.preventDefault();k.setPointerCapture(e.pointerId);noteOn(n,100,k)};k.onpointerup=k.onpointercancel=()=>noteOff(n,k);$('keys').append(k)}
+for(let n=36;n<=96;n++){let k=document.createElement('div');k.className='key '+([1,3,6,8,10].includes(n%12)?'black':'');k.textContent=midiName(n);k.dataset.n=n;k.onpointerdown=e=>{e.preventDefault();k.setPointerCapture(e.pointerId);noteOn(n,Number($('screenVelocity').value),k)};k.onpointerup=k.onpointercancel=()=>noteOff(n,k);$('keys').append(k)}
 let previewURL=null,importSerial=0;
 const preview=$('sourcePreview');preview.onplaying=()=>$('previewStatus').textContent='Browser media playback started.';preview.onpause=()=>{selectionPlaying=false;$('previewStatus').textContent='Preview paused.'};preview.onerror=()=>$('previewStatus').textContent='Browser media preview cannot play this format; try keyboard audition after analysis.';
 let selectionPlaying=false;
@@ -142,11 +160,15 @@ $('analyze').onclick=()=>{
   try{
     const selectedAudio=cropBuffer(ctx,buffer,range.start,range.end),result=analyzeBuffer(selectedAudio,dna,dna.capture.analysisProfile);
     detectedEvents=result.events.map(event=>({...event,start:event.start+range.start,end:event.end+range.start,enabled:true}));
+    if(dna.capture.analysisProfile==='struck')$('mode').value='Mallet';
     mapCandidates();
     $('status').textContent=detectedEvents.length?`${detectedEvents.length} note slices detected · ${dna.anchors.length} recorded keys mapped from ${range.start.toFixed(2)}–${range.end.toFixed(2)} sec. Review the list below and remove speech or wrong notes.`:'No stable isolated notes found. Try a clearer passage, adjust the note style, or record individual notes.';
   }catch(e){$('status').textContent=`Analysis failed: ${e.message}`;console.error('Instrument DNA analysis',e)}
 };
 $('density').onchange=()=>{dna.capture.density=Number($('density').value);if(detectedEvents.length)mapCandidates()};
+$('analysisProfile').onchange=()=>{if($('analysisProfile').value==='struck')$('mode').value='Mallet';else if($('mode').value==='Mallet')$('mode').value='HybridOriginal';refresh()};
+$('mode').onchange=()=>{stopVoices();refresh()};
+$('screenVelocity').oninput=()=>$('screenVelocityValue').textContent=$('screenVelocity').value;
 function download(data,name){const blob=new Blob([JSON.stringify(data)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function syncPresetFields(){dna.name=$('modelName').value.trim()||suggestedModelName($('source').value);dna.performance.glideMs=Math.round(Math.max(10,Math.min(250,Number($('glideMs').value)||70)))}
 $('export').onclick=()=>{syncPresetFields();download(serializable(dna),modelFilename(dna.name,'reflection'));$('detail').textContent=`Saved ${dna.name} DNA Reflection (no audio).`};
