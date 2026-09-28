@@ -4,7 +4,7 @@ import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
 import {panView,zoomView,selectionShades} from './wave-view.js?v=0.4.0';
 import {renderExpressiveNote} from './time-pitch.js?v=0.4.3';
-import {saveComparison,loadComparison} from './comparison.js?v=0.5.0';
+import {saveComparison,loadComparison} from './comparison.js?v=0.5.2';
 import {ARTICULATIONS,buildArticulationLayers,performanceArticulation,nearestArticulationAnchor} from './articulation.js?v=0.5.0';
 import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-policy.js?v=0.5.2';
 import {suggestedModelName,modelFilename} from './model-name.js?v=0.5.2';
