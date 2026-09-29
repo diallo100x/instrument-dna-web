@@ -9,3 +9,5 @@ a{color:#e7b568}
 .swatch.poly{background:#bd9be9}.key.poly-anchor{border-bottom:8px solid #bd9be9}.key.poly-inferred{border-bottom:8px solid #87969a}
 
 .swatch.poly{background:#ad8be1}.key.poly-anchor{border-bottom:8px solid #ad8be1}.key.poly-inferred{border-bottom:8px solid #87969a}
+
+#eventList{overflow-x:auto}#eventList td:nth-child(2){max-width:190px;overflow-wrap:anywhere}#eventList table{min-width:850px}

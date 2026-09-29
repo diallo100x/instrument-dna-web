@@ -1,8 +1,11 @@
-# Instrument DNA Web 0.5.6
+# Instrument DNA Web 0.5.7
 
 Static browser prototype. Serve with `python3 -m http.server 8000`; open localhost:8000. Run model tests with `npm test`. No build or third-party runtime dependency. Main branch is deployed by the repository's existing GitHub Pages configuration, if enabled remotely.
 
 ## Current behavior
+
+- A model can now combine multiple local source files in one session. Analyze the first file, leave “Add next file to this model” enabled, choose the articulation for the next file, then load and analyze it. Each candidate keeps a source ID, file name, selection and analysis profile; editing a crop removes only that file’s previous candidates. The normal keyboard favors Sustain when a separate Trill or other layer has the same pitch. Each articulation retains its own nearest anchors and original audio. An audio-free Reflection preserves source/anchor provenance and all layers; a playable comparison embeds only selected slices from their respective sources. Imported presets can be extended with a new file. Files are retained in browser memory only while the page is open. This does not perform source separation or infer an articulation automatically.
+
 
 - Decode local audio, show waveform, track stable pitches through continuous phrases, retain each detected event for review and select up to 1/3/6/12 distinct anchors per octave. Three is the default target; missing recordings cannot be invented. Sustained and Plucked retain their existing segmentation. Struck / mallet detects short amplitude rises, splits repeated strikes even while a bar still rings, measures the pitched body after the hit, and retains the opening transient. Its pitch search reaches the high glockenspiel register. The chosen profile is stored in the preset and restored in the selector.
 - The Detected note slices table lets users listen to each source slice, correct its MIDI key, or exclude speech and other wrong detections. Green keys show exact mapped recordings. Candidate slices beyond the capture density remain visible but are not mapped until the density or candidates change.
