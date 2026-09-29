@@ -5,3 +5,7 @@ a{color:#e7b568}
 #eventList{max-height:360px;overflow:auto}#eventList table{min-width:650px;width:100%}#eventList input[type=number]{width:70px}#eventList input[type=checkbox]{width:20px;height:20px;accent-color:#4dd3a7}#eventList td:last-child{white-space:nowrap;color:#4dd3a7}
 
 .malletLegend{display:flex;gap:1rem;flex-wrap:wrap;margin:.7rem 0;color:#bac9c9;font-size:.85rem}.malletLegend[hidden],.screenVelocity[hidden]{display:none}.malletLegend span{display:flex;align-items:center;gap:.35rem}.swatch{display:inline-block;width:15px;height:7px;border-radius:2px;background:#4dd3a7}.swatch.shifted{background:#e8bb68}.swatch.modeled{background:#87969a}.screenVelocity{display:flex;align-items:center;gap:.7rem;margin:.7rem 0;max-width:360px}.screenVelocity input{flex:1}.screenVelocity output{min-width:2rem;text-align:right}.key.mallet-modeled{border-bottom:8px solid #87969a}.key.mallet-shifted{border-bottom:8px solid #e8bb68}
+
+.swatch.poly{background:#bd9be9}.key.poly-anchor{border-bottom:8px solid #bd9be9}.key.poly-inferred{border-bottom:8px solid #87969a}
+
+.swatch.poly{background:#ad8be1}.key.poly-anchor{border-bottom:8px solid #ad8be1}.key.poly-inferred{border-bottom:8px solid #87969a}

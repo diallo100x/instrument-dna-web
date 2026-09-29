@@ -1,5 +1,5 @@
 import {suggestedModelName} from './model-name.js';
-export const VERSION='0.5.5';
+export const VERSION='0.5.6';
 export const DENSITIES=[1,3,6,12];
 export const MACROS=['Attack','Body','Brightness','Harmonics','Noise','Resonance','Dynamics','Articulation','Movement','Drive'];
 export const midiName=n=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((n%12)+12)%12]+(Math.floor(n/12)-1);

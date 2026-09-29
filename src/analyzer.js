@@ -1,5 +1,6 @@
 import {clamp,midiName,param,buildHierarchy} from './dna.js?v=0.4.1';
 import {detectStrikes,strikeEnd} from './struck.js?v=0.5.3';
+import {estimatePolyphonicPitches} from './polyphonic.js?v=0.5.6';
 export function estimatePitch(a,p,n,sr,maxHz=1800){let best=0,score=0,min=Math.floor(sr/maxHz),max=Math.min(Math.floor(sr/55),n/2),peaks=[];for(let lag=min;lag<=max;lag++){let c=0,e1=0,e2=0;for(let i=0;i<n-lag;i+=2){let x=a[p+i],y=a[p+i+lag];c+=x*y;e1+=x*x;e2+=y*y}let z=c/Math.sqrt(e1*e2+1e-12);peaks.push([lag,z]);if(z>score){score=z;best=lag}}let first=peaks.find(([lag,z],i)=>i>0&&i<peaks.length-1&&z>.55&&z>=score*.98&&z>=peaks[i-1][1]&&z>=peaks[i+1][1]);return {hz:score>.55?sr/(first?.[0]??best):0,confidence:clamp((score-.55)/.45)}}
 const rms=(a,p,n)=>Math.sqrt(Array.from({length:n},(_,i)=>(a[p+i]||0)**2).reduce((x,y)=>x+y,0)/n);
 export function measureHarmonics(a,s,e,sr,hz){
@@ -19,7 +20,7 @@ export function analyzeBuffer(buffer,dna,profile='sustained'){
   const minDuration=profile==='plucked'?.09:profile==='struck'?.105:.13,minFrames=profile==='plucked'?4:5;
   for(let p=0;p+win<a.length;p+=hop){
     const level=rms(a,p,win);
-    const pitch=level>gate?estimatePitch(a,p,win,sr,profile==='struck'?4500:1800):{hz:0,confidence:0};
+    const pitch=profile!=='polyphonic'&&level>gate?estimatePitch(a,p,win,sr,profile==='struck'?4500:1800):{hz:0,confidence:0};
     const note=pitch.hz?Math.round(69+12*Math.log2(pitch.hz/440)):null;
     frames.push({p,note:note>=24&&note<=108&&pitch.confidence>=(profile==='plucked'?.3:profile==='struck'?.28:.22)?note:null,confidence:pitch.confidence,level});
   }
@@ -28,16 +29,16 @@ export function analyzeBuffer(buffer,dna,profile='sustained'){
     const neighbors=frames.slice(Math.max(0,i-2),i+3).map(x=>x.note).filter(Number.isInteger).sort((x,y)=>x-y);
     return neighbors.length>=3?neighbors[Math.floor(neighbors.length/2)]:f.note;
   });
-  function record(s,e,midi,pitchConfidence,onsetStrength=null){
+  function record(s,e,midi,pitchConfidence,onsetStrength=null,mixed=false){
     const slice=a.subarray(s,e),length=slice.length;let peak=0,peakAt=0,sum=0,zero=0;
     for(let i=0;i<length;i++){let v=Math.abs(slice[i]);sum+=v*v;if(v>peak){peak=v;peakAt=i}if(i&&slice[i]*slice[i-1]<0)zero++}
     const power=Math.sqrt(sum/length);
-    const hz=440*2**((midi-69)/12),harmonics=measureHarmonics(a,s,e,sr,hz),brightness=clamp(zero/(length/sr)/4000),noise=clamp(brightness*.6),attackSeconds=Math.min(.2,peakAt/sr),decaySeconds=Math.min(2,length/sr-attackSeconds);
+    const hz=440*2**((midi-69)/12),harmonics=mixed?null:measureHarmonics(a,s,e,sr,hz),brightness=clamp(zero/(length/sr)/4000),noise=clamp(brightness*.6),attackSeconds=Math.min(.2,peakAt/sr),decaySeconds=Math.min(2,length/sr-attackSeconds);
     const transientConfidence=onsetStrength===null?clamp(power*8):clamp(onsetStrength);
-    const confidence={pitch:pitchConfidence,harmonic:harmonics?pitchConfidence*.55:0,noise:0,transient:transientConfidence,resonance:0,interpolation:0,overall:clamp(pitchConfidence*.65+transientConfidence*.35)};
-    const parameters={f0:param(hz,confidence.pitch,'Hz'),attackSeconds:param(attackSeconds,confidence.transient,'s'),decaySeconds:param(decaySeconds,confidence.transient,'s'),releaseSeconds:param(.12,0,'s'),brightness:param(brightness,.3),noise:param(noise,.2),harmonicRichness:param(clamp(1-noise),.15),resonance:param(.5,0),inharmonicity:param(0,0),level:param(power,1),zeroCrossingRate:param(zero/length,1)};
+    const confidence={pitch:pitchConfidence,harmonic:harmonics?pitchConfidence*.55:0,noise:0,transient:transientConfidence,resonance:0,interpolation:0,overall:clamp(pitchConfidence*(mixed?.7:.65)+transientConfidence*(mixed?.15:.35))};
+    const parameters=mixed?{f0:param(hz,confidence.pitch,'Hz'),attackSeconds:param(attackSeconds,confidence.transient,'s')}:{f0:param(hz,confidence.pitch,'Hz'),attackSeconds:param(attackSeconds,confidence.transient,'s'),decaySeconds:param(decaySeconds,confidence.transient,'s'),releaseSeconds:param(.12,0,'s'),brightness:param(brightness,.3),noise:param(noise,.2),harmonicRichness:param(clamp(1-noise),.15),resonance:param(.5,0),inharmonicity:param(0,0),level:param(power,1),zeroCrossingRate:param(zero/length,1)};
     if(harmonics)parameters.harmonicAmplitudes=param(harmonics,confidence.harmonic);
-    events.push({midi,note:midiName(midi),start:s/sr,end:e/sr,confidence,parameters,measurements:{peak,level:power,duration:length/sr,...(onsetStrength===null?{}:{onsetStrength})},unsupported:['spectral envelope','modal resonances','noise spectrum','nonlinear response','velocity response'],sampleRole:'attack',source:'recorded slice'});
+    events.push({midi,note:midiName(midi),start:s/sr,end:e/sr,confidence,parameters,measurements:{peak,level:power,duration:length/sr,...(onsetStrength===null?{}:{onsetStrength}),...(mixed?{sharedSource:true}:null)},unsupported:mixed?['isolated note audio','isolated harmonic amplitudes','source separation','spectral envelope','modal resonances','noise spectrum','velocity response']:['spectral envelope','modal resonances','noise spectrum','nonlinear response','velocity response'],sampleRole:mixed?'analysis-only':'attack',source:mixed?'polyphonic mixture':'recorded slice'});
   }
   function commit(from,to,midi){
     const matched=frames.slice(from,to).filter(f=>f.note===midi),duration=(to-from)*hop/sr;
@@ -47,7 +48,16 @@ export function analyzeBuffer(buffer,dna,profile='sustained'){
     const pitchConfidence=clamp(matched.reduce((sum,f)=>sum+f.confidence,0)/matched.length*matched.length/(to-from));
     record(s,e,midi,pitchConfidence);
   }
-  if(profile==='struck'){
+  if(profile==='polyphonic'){
+    const strikes=detectStrikes(a,sr);
+    for(let i=0;i<strikes.length;i++){
+      const start=strikes[i].sample,next=strikes[i+1]?.sample??a.length;
+      const end=strikeEnd(a,sr,start,Math.min(next,a.length,start+Math.round(sr*2.5)));
+      if(end-start<sr*.12)continue;
+      const pitches=estimatePolyphonicPitches(a,sr,start,end);
+      for(const pitch of pitches)record(Math.max(0,start-Math.round(sr*.006)),end,pitch.midi,pitch.confidence,strikes[i].strength,true);
+    }
+  }else if(profile==='struck'){
     const strikes=detectStrikes(a,sr);
     for(let i=0;i<strikes.length;i++){
       const start=strikes[i].sample,next=strikes[i+1]?.sample??a.length;
