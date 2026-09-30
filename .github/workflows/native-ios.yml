@@ -16,8 +16,20 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project native/InstrumentDNA/InstrumentDNA.xcodeproj -scheme InstrumentDNA -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/InstrumentDNA" CODE_SIGNING_ALLOWED=NO build | tee "$RUNNER_TEMP/native-build.log"
+      - name: Launch standalone app in iPad simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if "iPad" in x["name"]))')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
+          xcrun simctl launch "$DEVICE" org.diallobeats.instrumentdna
+          sleep 10
+          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
+          xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: native-build-log
-          path: ${{ runner.temp }}/native-build.log
+          path: |
+            ${{ runner.temp }}/native-build.log
+            ${{ runner.temp }}/native-ipad.png
