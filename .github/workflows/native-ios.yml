@@ -28,10 +28,17 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
-          xcrun simctl launch "$DEVICE" org.diallobeats.instrumentdna
+          xcrun simctl launch --stdout="$RUNNER_TEMP/native-app.log" --stderr="$RUNNER_TEMP/native-app-errors.log" "$DEVICE" org.diallobeats.instrumentdna
           sleep 10
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
           xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
+      - name: Collect simulator crash diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-diagnostics"
+          find "$HOME/Library/Logs/DiagnosticReports" -name 'InstrumentDNA*.ips' -exec cp {} "$RUNNER_TEMP/native-diagnostics/" \;
+          xcrun simctl spawn booted log show --last 3m --style compact --predicate 'process == "InstrumentDNA"' > "$RUNNER_TEMP/native-diagnostics/app-system.log" 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -39,3 +46,5 @@ jobs:
           path: |
             ${{ runner.temp }}/native-build.log
             ${{ runner.temp }}/native-ipad.png
+            ${{ runner.temp }}/native-app*.log
+            ${{ runner.temp }}/native-diagnostics

@@ -19,7 +19,7 @@ final class StandaloneHost:ObservableObject {
         }
         NotificationCenter.default.addObserver(forName:AVAudioSession.interruptionNotification,object:nil,queue:.main){[weak self] notification in self?.model?.unit.panic();if let raw=notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,raw==AVAudioSession.InterruptionType.ended.rawValue {do{try AVAudioSession.sharedInstance().setActive(true);try self?.engine.start()}catch{self?.status=error.localizedDescription}}}
     }
-    func resume(){if !engine.isRunning {do{try AVAudioSession.sharedInstance().setActive(true);try engine.start()}catch{status=error.localizedDescription}}}
+    func resume(){guard model != nil else{return};if !engine.isRunning {do{try AVAudioSession.sharedInstance().setActive(true);try engine.start()}catch{status=error.localizedDescription}}}
 }
 @main struct InstrumentDNAApp:App {
     @StateObject private var host=StandaloneHost()
