@@ -53,6 +53,7 @@ final class InstrumentModel: ObservableObject {
         } catch { status = "Import failed: \(error.localizedDescription)" }
     }
     private func importAudio(_ url: URL) throws {
+        let savedParameters = values
         let file = try AVAudioFile(forReading: url), format = file.processingFormat
         let start = max(0, cropStart), end = min(Double(file.length) / format.sampleRate, cropEnd)
         guard end > start, end-start <= 15 else { throw ModelError("Select a nonempty passage of at most 15 seconds.") }
@@ -66,6 +67,7 @@ final class InstrumentModel: ObservableObject {
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         var dna = document["reflection"] as? [String: Any] ?? document
         if dna["format"] == nil { dna = ["format":"instrument-dna-reflection", "version":"0.5.7", "analyzerVersion":"native-manual-0.1.0", "name":name, "anchors":[], "provenance":[], "sampleSlots":[], "global":[:], "registers":[], "capture":["density":3], "performance":["layers":[:]]] }
+        dna["name"] = name
         let roles = ["sustain","trill","staccato","accent","breathy","alternate"], role = roles[Int(value(20))]
         let sourceID = UUID().uuidString
         let anchor: [String: Any] = ["midi":rootMidi,"sourceId":sourceID,"sourceFilename":url.lastPathComponent,"source":"recorded slice","articulation":role,"start":start,"end":end,"confidence":["pitch":0,"overall":0],"parameters":["f0":["analyzed":440*pow(2,Double(rootMidi-69)/12),"model":440*pow(2,Double(rootMidi-69)/12),"offset":0,"confidence":0,"unit":"Hz"]],"unsupported":["automatic pitch analysis","harmonic model","source separation"]]
@@ -82,7 +84,7 @@ final class InstrumentModel: ObservableObject {
         audioLayers = audioLayers.filter { !(($0["layer"] as? String)==role && ($0["midi"] as? Int)==rootMidi) } + [layered]
         if role == "sustain" { audioBase = audioBase.filter { ($0["midi"] as? Int) != rootMidi } + [clip] }
         document = ["format":"instrument-dna-playable-comparison","version":1,"hybridMode":"HybridOriginal","reflection":dna,"audio":audioBase,"audioLayers":audioLayers]
-        _ = try unit.loadModelData(JSONSerialization.data(withJSONObject:document)); refreshModel()
+        _ = try unit.loadModelData(JSONSerialization.data(withJSONObject:document));for (id,value) in savedParameters {set(id,value)};refreshModel()
     }
     func exportData(includeAudio: Bool) throws -> Data {
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String:Any]) ?? [:]
