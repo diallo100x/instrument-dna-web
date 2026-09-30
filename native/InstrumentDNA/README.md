@@ -35,7 +35,7 @@ Per-note bends are supported for local touch voices and MPE member channels. Thi
 
 Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitizer: audible finite output, pitch checks, independent/global bend, multi-voice separation, legato return priority, MPE, sustain, articulation samples and concurrent model replacement. LeakSanitizer is disabled because this environment disallows its process inspection. Project/plist/scheme integrity checks pass. Existing web suite: 33/33 passed.
 
-.github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation.
+.github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation. The iPad simulator reached the playable interface with audio initialized; first-boot timing required a longer CI timeout.
 
 Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the latest Actions result. Real-device touch/audio latency, Bluetooth MIDI, AU host view resizing, parameter automation and session restoration require device/host acceptance testing before shipping. A simulator compile alone does not establish those behaviors.
 
