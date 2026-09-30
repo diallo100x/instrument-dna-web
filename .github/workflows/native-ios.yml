@@ -27,6 +27,8 @@ jobs:
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if "iPad" in x["name"]))')
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
+          codesign --force --sign - "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app/PlugIns/InstrumentDNAInstrument.appex"
+          codesign --force --sign - "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
           xcrun simctl install "$DEVICE" "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
           xcrun simctl launch --stdout="$RUNNER_TEMP/native-app.log" --stderr="$RUNNER_TEMP/native-app-errors.log" "$DEVICE" org.diallobeats.instrumentdna
           sleep 10
