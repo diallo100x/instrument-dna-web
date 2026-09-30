@@ -1,0 +1,23 @@
+name: Native iOS instrument
+on:
+  push:
+    paths: ['native/**', '.github/workflows/native-ios.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Portable DSP and project tests
+        run: CC=clang native/InstrumentDNA/test.sh
+      - name: Build standalone app and embedded AUv3
+        run: |
+          set -o pipefail
+          xcodebuild -project native/InstrumentDNA/InstrumentDNA.xcodeproj -scheme InstrumentDNA -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/InstrumentDNA" CODE_SIGNING_ALLOWED=NO build | tee "$RUNNER_TEMP/native-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-build-log
+          path: ${{ runner.temp }}/native-build.log
