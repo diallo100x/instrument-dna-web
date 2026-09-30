@@ -20,7 +20,7 @@ xcodebuild -project InstrumentDNA.xcodeproj -scheme InstrumentDNA -destination '
 - Independent finger slides bend each voice; Global mode bends all voices. Output tab provides global pitch and modulation wheels and bend range. MIDI includes channel pitch bend, CC1, sustain CC64, and independent member-channel MPE bends.
 - Poly, mono, and last-held-note legato with glide; articulation selection and velocity trill controls; panic button.
 - Dedicated tabs for all ten macros, both XY pads, Performance, Sources, DNA Edit, Anchors, Era and Output. Scrollable page contents and a tab menu remain accessible in small host windows.
-- Host parameter automation and full-state recall. Named JSON Reflection and playable comparison export/import. Existing web comparisons retain per-articulation source samples. Native source import supports manual root-note and crop selection through AVAudioFile.
+- Host parameter automation and full-state recall. Standalone background audio is enabled. Named JSON Reflection and playable comparison export/import. Existing web comparisons retain per-articulation source samples. Native source import supports manual root-note and crop selection through AVAudioFile.
 - Bottom-right branding: “a product of Diallo Beats Audio Lab”.
 
 ## Sound and compatibility limits
@@ -34,5 +34,7 @@ Per-note bends are supported for local touch voices and MPE member channels. Thi
 ## Verification status
 
 Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitizer: audible finite output, pitch checks, independent/global bend, multi-voice separation, legato return priority, MPE, sustain, articulation samples and concurrent model replacement. LeakSanitizer is disabled because this environment disallows its process inspection. Project/plist/scheme integrity checks pass. Existing web suite: 33/33 passed.
+
+.github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation.
 
 Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the latest Actions result. Real-device touch/audio latency, Bluetooth MIDI, AU host view resizing, parameter automation and session restoration require device/host acceptance testing before shipping. A simulator compile alone does not establish those behaviors.

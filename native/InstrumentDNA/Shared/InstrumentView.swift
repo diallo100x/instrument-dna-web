@@ -36,17 +36,17 @@ struct InstrumentView: View {
             }.padding(.horizontal)
             ScrollView { VStack(alignment:.leading,spacing:12){Text(tab).font(.title3.bold());page;Text(model.status).font(.caption).foregroundColor(.secondary).fixedSize(horizontal:false,vertical:true)}.padding().frame(maxWidth:.infinity,alignment:.leading) }.frame(height:controlHeight)
             VStack(spacing:6){
-                HStack { Picker("Playing surface",selection:$surface){ForEach(PlayingSurface.allCases,id:\.self){Text($0.rawValue).tag($0)}}.pickerStyle(.menu)
+                ScrollView(.horizontal,showsIndicators:true) { HStack { Picker("Playing surface",selection:$surface){ForEach(PlayingSurface.allCases,id:\.self){Text($0.rawValue).tag($0)}}.pickerStyle(.menu)
                     Button("− Oct"){firstNote=max(24,firstNote-12)};Text(noteName(firstNote)).font(.caption.monospaced());Button("+ Oct"){firstNote=min(surface == .fretboard ? 84:96,firstNote+12)}
                     Picker("Slide mode",selection:$independent){Text("Per note slide").tag(true);Text("Global slide").tag(false)}.pickerStyle(.menu)
-                }.padding(.horizontal)
+                }.padding(.horizontal) }
                 TouchInstrument(model:model,style:surface,firstNote:firstNote,noteCount:noteCount,independent:independent).frame(height:surfaceHeight).clipShape(RoundedRectangle(cornerRadius:8)).padding(.horizontal,8)
                 HStack{Text("Slide each finger horizontally · bend range \(Int(model.value(17))) semitones").font(.caption2);Spacer();Text("a product of Diallo Beats Audio Lab").font(.system(size:9)).foregroundColor(.secondary)}.padding(.horizontal,10)
             }
         }.padding(.vertical,8)
     }
     @ViewBuilder private var page:some View {
-        if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to center"){model.set(index,0.5)} }
+        if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to model baseline"){model.set(index,(model.reflection["macros"] as? [String:NSNumber])?[macros[index]]?.floatValue ?? 0.5)} }
         else {switch tab {
         case "Instrument":
             TextField("Model name",text:$model.name).textFieldStyle(.roundedBorder)
