@@ -12,6 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Portable DSP and project tests
         run: CC=clang native/InstrumentDNA/test.sh
+      - name: Apple audio unit integration tests
+        run: |
+          clang -std=c11 -c native/InstrumentDNA/DSP/DNAKernel.c -o "$RUNNER_TEMP/dna-kernel.o"
+          clang++ -std=c++17 -fobjc-arc -I native/InstrumentDNA/DSP -I native/InstrumentDNA/Shared native/InstrumentDNA/Tests/apple_unit_test.mm native/InstrumentDNA/Shared/DNAudioUnit.mm "$RUNNER_TEMP/dna-kernel.o" -framework Foundation -framework AVFoundation -framework AudioToolbox -o "$RUNNER_TEMP/dna-unit-test"
+          "$RUNNER_TEMP/dna-unit-test"
       - name: Build standalone app and embedded AUv3
         run: |
           set -o pipefail
