@@ -34,6 +34,7 @@ jobs:
           sleep 10
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
           xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
+          grep -q INSTRUMENT_DNA_READY "$RUNNER_TEMP/native-app.log"
       - name: Collect simulator crash diagnostics
         if: always()
         timeout-minutes: 2

@@ -14,4 +14,4 @@ for directory in ['DSP','Shared','App','Extension']:
         if file.suffix in ['.c','.m','.mm','.h','.swift']:
             assert str(file.relative_to(root)) in project, f'missing {file}'
 ET.parse(root/'InstrumentDNA.xcodeproj/xcshareddata/xcschemes/InstrumentDNA.xcscheme')
-print('Project checks: source membership, component IDs, embedded extension, deployment target, scheme and plists passed. Apple compilation remains required.')
+print('Project checks: source membership, component IDs, embedded extension, deployment target, scheme and plists passed. Apple compilation and runtime checks run separately in CI.')

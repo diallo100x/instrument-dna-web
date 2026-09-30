@@ -38,3 +38,14 @@ Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitiz
 .github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation.
 
 Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the latest Actions result. Real-device touch/audio latency, Bluetooth MIDI, AU host view resizing, parameter automation and session restoration require device/host acceptance testing before shipping. A simulator compile alone does not establish those behaviors.
+
+## First device acceptance pass
+
+1. Launch the containing app and play the default piano: sound should start without importing anything.
+2. Import a web **playable comparison** from Files. Audition measured anchor keys in Hybrid Original before comparing reconstructed notes.
+3. Hold two fingers in Per note slide mode; move one horizontally and check that the other stays in tune. In Global mode or with Global Bend, both voices should move.
+4. Switch Piano/Mallet/Fretboard/Drum Pads, rotate the device, and reach every page using the All parameter tabs menu. Compact screens can scroll the playing controls horizontally.
+5. Try Mono and Legato, an imported articulation layer, sustain pedal and Panic. Save a named playable comparison, reload it and verify Tone/Behavior XY, Era and performance controls.
+6. Load the AUv3 inside your host; check host MIDI, automation, resizing and save/reopen of the host session. Confirm background audio in standalone use.
+
+Report the model file, engine mode, iPad/iOS version and host used if a sound or mapping differs. Native reconstruction and time stretching are intentionally not yet at web-engine parity.
