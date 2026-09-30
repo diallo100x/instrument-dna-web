@@ -6,7 +6,7 @@ import AudioToolbox
 final class InstrumentViewController:AUViewController,AUAudioUnitFactory {
     private var unit:DNAudioUnit?
     private var hosting:UIHostingController<InstrumentView>?
-    override func loadView(){view=UIView();view.backgroundColor=UIColor(red:.06,green:.1,blue:.12,alpha:1);installInterface()}
+    override func loadView(){view=UIView();view.backgroundColor=UIColor(red:0.06,green:0.1,blue:0.12,alpha:1);installInterface()}
     func createAudioUnit(with componentDescription:AudioComponentDescription)throws->AUAudioUnit {
         let created=try DNAudioUnit(componentDescription:componentDescription,options:[]);unit=created
         DispatchQueue.main.async{[weak self] in self?.installInterface()};return created

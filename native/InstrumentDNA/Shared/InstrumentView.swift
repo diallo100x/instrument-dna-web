@@ -17,7 +17,7 @@ struct InstrumentView: View {
     var body:some View {
         GeometryReader { geometry in
             if geometry.size.height<380 { ScrollView { layout(controlHeight:220,surfaceHeight:180) } }
-            else { layout(controlHeight:nil,surfaceHeight:min(240,max(140,geometry.size.height*.32))) }
+            else { layout(controlHeight:nil,surfaceHeight:min(240,max(140,geometry.size.height*0.32))) }
         }
         .background(Color(red:0.06,green:0.1,blue:0.12)).foregroundColor(.white)
         .preferredColorScheme(.dark)
@@ -32,7 +32,7 @@ struct InstrumentView: View {
         VStack(spacing:8){
             HStack { Text("INSTRUMENT DNA · AUv3").font(.caption.bold());Spacer();Button("Panic"){model.unit.panic()}.accessibilityHint("Release every sounding voice") }.padding(.horizontal)
             HStack { Picker("All parameter tabs",selection:$tab){ForEach(tabs,id:\.self){Text($0).tag($0)}}.pickerStyle(.menu).accessibilityLabel("All parameter tabs")
-                ScrollView(.horizontal,showsIndicators:true){HStack{ForEach(tabs,id:\.self){name in Button(name){tab=name}.padding(.horizontal,9).padding(.vertical,6).background(tab==name ? Color.orange.opacity(.35):Color.white.opacity(.08)).cornerRadius(6)}}}.accessibilityLabel("Parameter tabs")
+                ScrollView(.horizontal,showsIndicators:true){HStack{ForEach(tabs,id:\.self){name in Button(name){tab=name}.padding(.horizontal,9).padding(.vertical,6).background(tab==name ? Color.orange.opacity(0.35):Color.white.opacity(0.08)).cornerRadius(6)}}}.accessibilityLabel("Parameter tabs")
             }.padding(.horizontal)
             ScrollView { VStack(alignment:.leading,spacing:12){Text(tab).font(.title3.bold());page;Text(model.status).font(.caption).foregroundColor(.secondary).fixedSize(horizontal:false,vertical:true)}.padding().frame(maxWidth:.infinity,alignment:.leading) }.frame(height:controlHeight)
             VStack(spacing:6){
@@ -46,7 +46,7 @@ struct InstrumentView: View {
         }.padding(.vertical,8)
     }
     @ViewBuilder private var page:some View {
-        if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to center"){model.set(index,.5)} }
+        if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to center"){model.set(index,0.5)} }
         else {switch tab {
         case "Instrument":
             TextField("Model name",text:$model.name).textFieldStyle(.roundedBorder)
@@ -60,7 +60,7 @@ struct InstrumentView: View {
             enumPicker("Voice behavior",id:18,labels:["Poly","Mono","Legato"])
             ParameterSlider(model:model,id:19,title:"Legato glide · ms",range:10...250)
             enumPicker("Articulation layer",id:20,labels:["Sustain","Trill","Staccato","Accent","Breathy","Alternate"])
-            Toggle("High velocity selects Trill",isOn:Binding(get:{model.value(25)>.5},set:{model.set(25,$0 ? 1:0)}))
+            Toggle("High velocity selects Trill",isOn:Binding(get:{model.value(25)>0.5},set:{model.set(25,$0 ? 1:0)}))
             ParameterSlider(model:model,id:26,title:"Trill velocity threshold",range:1...127)
             ParameterSlider(model:model,id:23,title:"Generated trill rate · Hz",range:3...15)
             ParameterSlider(model:model,id:24,title:"Generated trill interval · semitones",range:1...12)
@@ -104,13 +104,13 @@ struct ParameterSlider:View {
     let id:Int
     let title:String
     var range:ClosedRange<Float> = 0...1
-    var body:some View{VStack(alignment:.leading){HStack{Text(title);Spacer();Text(String(format:range.upperBound>2 ? "%.0f":"%.2f",model.value(id))).monospacedDigit()};Slider(value:model.binding(id),in:range).accessibilityLabel(title)}}
+    var body:some View{VStack(alignment:.leading){HStack{Text(title);Spacer();Text(String(format:range.upperBound>2 ? "%0.0f":"%0.2f",model.value(id))).monospacedDigit()};Slider(value:model.binding(id),in:range).accessibilityLabel(title)}}
 }
 struct XYControl:View {
     @ObservedObject var model:InstrumentModel
     let x:Int,y:Int
     let left:String,right:String,bottom:String,top:String
-    var body:some View{VStack{HStack{Text(left);Spacer();Text(right)};GeometryReader{g in ZStack{RoundedRectangle(cornerRadius:12).fill(Color.teal.opacity(.25));Circle().fill(Color.orange).frame(width:22,height:22).position(x:CGFloat(model.value(x))*g.size.width,y:(1-CGFloat(model.value(y)))*g.size.height)}.contentShape(Rectangle()).gesture(DragGesture(minimumDistance:0).onChanged{v in model.set(x,Float(v.location.x/g.size.width));model.set(y,1-Float(v.location.y/g.size.height))})}.frame(height:130);HStack{Text(bottom);Spacer();Text(top)};HStack{ParameterSlider(model:model,id:x,title:"X");ParameterSlider(model:model,id:y,title:"Y")}}}
+    var body:some View{VStack{HStack{Text(left);Spacer();Text(right)};GeometryReader{g in ZStack{RoundedRectangle(cornerRadius:12).fill(Color.teal.opacity(0.25));Circle().fill(Color.orange).frame(width:22,height:22).position(x:CGFloat(model.value(x))*g.size.width,y:(1-CGFloat(model.value(y)))*g.size.height)}.contentShape(Rectangle()).gesture(DragGesture(minimumDistance:0).onChanged{v in model.set(x,Float(v.location.x/g.size.width));model.set(y,1-Float(v.location.y/g.size.height))})}.frame(height:130);HStack{Text(bottom);Spacer();Text(top)};HStack{ParameterSlider(model:model,id:x,title:"X");ParameterSlider(model:model,id:y,title:"Y")}}}
 }
 struct OffsetEditor:View {
     @ObservedObject var model:InstrumentModel

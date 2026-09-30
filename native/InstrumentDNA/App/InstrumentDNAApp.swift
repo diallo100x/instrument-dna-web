@@ -13,7 +13,7 @@ final class StandaloneHost:ObservableObject {
         AUAudioUnit.registerSubclass(DNAudioUnit.self,as:component,name:"Diallo Beats Audio Lab: Instrument DNA",version:0x00010000)
         AVAudioUnit.instantiate(with:component,options:[]){[weak self] unit,error in
             DispatchQueue.main.async {guard let self=self else{return};guard let unit=unit,let dna=unit.auAudioUnit as? DNAudioUnit else{self.status=error?.localizedDescription ?? "Cannot create Instrument DNA";return};do{
-                let session=AVAudioSession.sharedInstance();try session.setCategory(.playback,mode:.default,options:.mixWithOthers);try session.setPreferredIOBufferDuration(.0058);try session.setActive(true)
+                let session=AVAudioSession.sharedInstance();try session.setCategory(.playback,mode:.default,options:.mixWithOthers);try session.setPreferredIOBufferDuration(0.0058);try session.setActive(true)
                 self.node=unit;self.engine.attach(unit);self.engine.connect(unit,to:self.engine.mainMixerNode,format:unit.outputFormat(forBus:0));try self.engine.start();self.model=InstrumentModel(unit:dna);self.midi=DNAMIDIInput(unit:dna)
             }catch{self.status="Audio startup failed: \(error.localizedDescription)"}}
         }
