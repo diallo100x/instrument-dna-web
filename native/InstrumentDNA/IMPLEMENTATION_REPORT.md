@@ -70,3 +70,25 @@ Pushed to `diallo100x/instrument-dna-web`, branch `main`. Local source is synchr
 ## 10. Next milestone
 
 Run the README's device acceptance checklist with the saved Pifano playable comparison in standalone and an AU host. Then port the web engine's independent pitch/time stretching and analyzer workflow to native, with A/B sound comparisons against the existing web instruments.
+
+## Native module/extraction update — October 2, 2026
+
+The preceding report describes the original native foundation. This update preserves that code and the existing web app, adding:
+
+- A page for each existing web module, side previous/next arrows with wraparound, a direct Module picker, and a musical macro overview. Existing dedicated parameter pages and touch surfaces remain available.
+- Native monophonic extraction from AVAudioFile-decoded crops, basic periodicity confidence and harmonic measurements, sustained/plucked/struck profiles, and sparse 1/3/6/12 anchors per octave. New anchors map to detected MIDI keys and can be saved in existing Reflection/comparison formats.
+- A note review page with isolated source-slice and reconstructed-note auditions, immediate stop, three-second preview limit, and non-destructive articulation-layer copying. Source slices bypass instrument pitch/shaping; master output gain/limiting remains active. Copy collisions protect existing destination sounds.
+- Explicit AU custom-editor discovery, compact/expanded/default-size negotiation, controller lifecycle attachment and note cleanup when closing the editor. These are compatibility improvements; the reported Koala issue has not been reproduced or certified resolved here.
+
+Fully operational foundations are covered by automated tests: native pitch detection/silence rejection, sparse versus chromatic capture, mapping/audio preservation, layer collisions, JSON round trips, source preview isolation from mono/legato and global pitch, stop/panic, and existing DSP behavior. All 33 web tests pass. Apple AU integration tests, native Swift model/analyzer tests, and iOS app/extension compilation passed in [Actions run 36954228203](https://github.com/diallo100x/instrument-dna-web/actions/runs/36954228203). Simulator startup is checked by the same workflow; consult its final result.
+
+Known limits: extraction is monophonic (approximately 65–1800 Hz), selects one stable occurrence per measured key, and does not identify instruments, trills or source-separated chord notes. Basic harmonic/attack estimates are approximate; modal, noise-spectrum and recognition measurements remain unsupported. Native source crop uses numeric bounds, maximum 15 seconds, configured before choosing a file. The native UI does not yet expose the web waveform/zoom editor, every unused detected candidate, destructive retagging/removal, independent stretch or full web DSP parity. Layer copying retains the original mapping; it does not convert a sustained performance into a real trill. Real Koala host loading and physical iPad audio/MIDI/gesture acceptance remain unverified. No signed device IPA/TestFlight distribution is created.
+
+Incremental commits pushed to `diallo100x/instrument-dna-web`, `main`:
+
+- `ca1e0ca` — resizable editor and dedicated audition voices.
+- `ee25239` — native extraction, module navigation and articulation review.
+- `6564e97` — CoreAudioKit linking and host-default sizes.
+- `0f9fdfe` — correct AU editor-discovery API; Apple checks pass.
+
+Next milestone: native source waveform/crop audition and full candidate review (enable/disable, key correction, articulation move), followed by real Koala acceptance and independent time stretching. Downloadable deliverable remains the containing-app Xcode project, not a standalone installable iPad archive.
