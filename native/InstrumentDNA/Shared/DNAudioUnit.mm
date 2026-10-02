@@ -32,6 +32,11 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
 - (AUAudioUnitBusArray*)outputBusses{return _outputs;}
 - (AUAudioUnitBusArray*)inputBusses{return _inputs;}
 - (AUParameterTree*)parameterTree{return _tree;}
+- (BOOL)hasCustomView{return YES;}
+- (NSIndexSet*)supportedViewConfigurations:(NSArray<AUAudioUnitViewConfiguration*>*)configurations {
+ NSMutableIndexSet*accepted=[NSMutableIndexSet indexSet];
+ [configurations enumerateObjectsUsingBlock:^(AUAudioUnitViewConfiguration*c,NSUInteger index,BOOL*stop){if(c.width>0&&c.height>0)[accepted addIndex:index];}];return accepted;
+}
 - (BOOL)canProcessInPlace{return NO;}
 - (BOOL)supportsMPE{return YES;}
 - (BOOL)supportsUserPresets{return YES;}
@@ -58,6 +63,7 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
 }
 - (void)touchNote:(NSInteger)slot midi:(NSInteger)midi velocity:(float)velocity down:(BOOL)down{if(slot>=0&&slot<DNA_TOUCH_SLOTS)dna_note_set(_kernel,(int)slot,(int)midi,velocity,down);}
 - (void)touchBend:(NSInteger)slot semitones:(float)semitones{if(slot>=0&&slot<DNA_TOUCH_SLOTS)dna_note_bend(_kernel,(int)slot,semitones);}
+- (void)previewNote:(NSInteger)midi layer:(NSInteger)layer source:(BOOL)source down:(BOOL)down{dna_preview(_kernel,(int)midi,(int)layer,source,down);}
 - (void)panic{dna_all_notes_off(_kernel);}
 - (void)receiveMIDI:(uint8_t)status a:(uint8_t)a b:(uint8_t)b{dna_midi(_kernel,status,a,b);}
 - (NSData*)modelData {[_stateLock lock];NSData*d=_modelData;[_stateLock unlock];return d;}

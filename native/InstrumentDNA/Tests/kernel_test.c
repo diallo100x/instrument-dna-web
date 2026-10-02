@@ -19,4 +19,11 @@ static void sample_layers_test(void){DNAKernel*k=dna_kernel_create(SR);DNABank*b
 static void*publisher(void*context){DNAKernel*k=context;for(int i=0;i<200;i++){DNABank*b=dna_bank_create();float h[]={1,.2};assert(dna_bank_anchor(b,0,60,.01,.5,.1,h,2,0));dna_bank_publish(k,b);}return NULL;}
 static void publication_test(void){DNAKernel*k=dna_kernel_create(SR);dna_note_set(k,0,60,1,1);pthread_t thread;assert(pthread_create(&thread,NULL,publisher,k)==0);for(int i=0;i<50;i++)render(k);pthread_join(thread,NULL);dna_kernel_destroy(k);}
 static void panic_test(void){DNAKernel*k=dna_kernel_create(SR);dna_parameter_set(k,DNA_ENGINE_MODE,3);dna_note_set(k,0,60,1,1);render(k);assert(energy()>.00001);dna_all_notes_off(k);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);}
-int main(void){panic_test();pitch_test();independent_test();mono_test();midi_test();sample_layers_test();publication_test();puts("Native DSP: output, independent/global bend, legato priority, MPE, sustain, sample layers, struck-note panic and concurrent model publication passed.");return 0;}
+static void preview_test(void){
+ DNAKernel*k=dna_kernel_create(SR);DNABank*b=dna_bank_create();float*sample=malloc(N*3*sizeof(float));for(int i=0;i<N*3;i++)sample[i]=.4f*sin(6.283185307179586*880*i/SR);assert(dna_bank_sample(b,1,69,sample,N*3,SR));free(sample);dna_bank_publish(k,b);
+ dna_parameter_set(k,DNA_VOICE_MODE,2);dna_parameter_set(k,DNA_ENGINE_MODE,1);dna_parameter_set(k,DNA_PITCH,1);dna_parameter_set(k,DNA_BEND_RANGE,12);
+ dna_note_set(k,0,48,1,1);dna_preview(k,69,1,1,1);render(k);assert(component(880)>.05);assert(component(261.63)>.02);assert(dna_parameter_get(k,DNA_LAYER)==0);assert(dna_parameter_get(k,DNA_ENGINE_MODE)==1);
+ dna_preview(k,69,1,1,0);render(k);assert(component(880)<.001);assert(component(261.63)>.02);
+ dna_preview(k,69,1,0,1);render(k);assert(energy()>.0001);dna_all_notes_off(k);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);
+}
+int main(void){preview_test();panic_test();pitch_test();independent_test();mono_test();midi_test();sample_layers_test();publication_test();puts("Native DSP: output, independent/global bend, legato priority, MPE, sustain, sample layers, struck-note panic and concurrent model publication passed.");return 0;}
