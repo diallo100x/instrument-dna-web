@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct InstrumentView: View {
     @ObservedObject var model: InstrumentModel
-    @State private var tab="Instrument"
+    @State private var tab="Main · musical controls"
     @State private var surface:PlayingSurface = .piano
     @State private var firstNote=48
     @State private var noteCount=24
@@ -13,7 +13,7 @@ struct InstrumentView: View {
     @State private var document=PresetDocument(data:Data())
     @State private var exportName="Instrument DNA"
     private let macros=["Attack","Body","Brightness","Harmonics","Noise","Resonance","Dynamics","Articulation","Movement","Drive"]
-    private var tabs:[String]{["Instrument"]+macros+["Tone XY","Behavior XY","Performance","Sources","DNA Edit","Anchors","Era","Output","About"]}
+    private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Era DNA","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
     var body:some View {
         GeometryReader { geometry in
             if geometry.size.height<380 { ScrollView { layout(controlHeight:220,surfaceHeight:180) } }
@@ -31,9 +31,14 @@ struct InstrumentView: View {
     private func layout(controlHeight:CGFloat?,surfaceHeight:CGFloat)->some View {
         VStack(spacing:8){
             HStack { Text("INSTRUMENT DNA · AUv3").font(.caption.bold());Spacer();Button("Panic"){model.unit.panic()}.accessibilityHint("Release every sounding voice") }.padding(.horizontal)
-            HStack { Picker("All parameter tabs",selection:$tab){ForEach(tabs,id:\.self){Text($0).tag($0)}}.pickerStyle(.menu).accessibilityLabel("All parameter tabs")
-                ScrollView(.horizontal,showsIndicators:true){HStack{ForEach(tabs,id:\.self){name in Button(name){tab=name}.padding(.horizontal,9).padding(.vertical,6).background(tab==name ? Color.orange.opacity(0.35):Color.white.opacity(0.08)).cornerRadius(6)}}}.accessibilityLabel("Parameter tabs")
-            }.padding(.horizontal)
+            HStack {
+                Button { advance(-1) } label: { Image(systemName:"chevron.left").frame(width:44,height:44) }.accessibilityLabel("Previous module")
+                Spacer(minLength:0)
+                Picker("Module",selection:$tab){ForEach(tabs,id:\.self){Text($0).tag($0)}}.pickerStyle(.menu).accessibilityLabel("Jump to module")
+                Spacer(minLength:0)
+                Button { advance(1) } label: { Image(systemName:"chevron.right").frame(width:44,height:44) }.accessibilityLabel("Next module")
+            }.padding(.horizontal,8)
+            Text("\((tabs.firstIndex(of:tab) ?? 0)+1) / \(tabs.count)").font(.caption2).foregroundColor(.secondary)
             ScrollView { VStack(alignment:.leading,spacing:12){Text(tab).font(.title3.bold());page;Text(model.status).font(.caption).foregroundColor(.secondary).fixedSize(horizontal:false,vertical:true)}.padding().frame(maxWidth:.infinity,alignment:.leading) }.frame(height:controlHeight)
             VStack(spacing:6){
                 ScrollView(.horizontal,showsIndicators:true) { HStack { Picker("Playing surface",selection:$surface){ForEach(PlayingSurface.allCases,id:\.self){Text($0.rawValue).tag($0)}}.pickerStyle(.menu)
@@ -48,7 +53,7 @@ struct InstrumentView: View {
     @ViewBuilder private var page:some View {
         if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to model baseline"){model.set(index,(model.reflection["macros"] as? [String:NSNumber])?[macros[index]]?.floatValue ?? 0.5)} }
         else {switch tab {
-        case "Instrument":
+        case "Instrument map":
             TextField("Model name",text:$model.name).textFieldStyle(.roundedBorder)
             enumPicker("Engine",id:28,labels:["Hybrid · Original","Reconstructed","Sample follow","Mallet"])
             Text("Original uses exact recorded anchors and harmonic modeling between them. Sample follow transposes a nearby anchor; pitch and duration remain linked in this native first version.").font(.caption).foregroundColor(.secondary)
@@ -56,7 +61,7 @@ struct InstrumentView: View {
             Picker("Visible keyboard keys",selection:$noteCount){Text("12").tag(12);Text("24").tag(24);Text("36").tag(36)}.pickerStyle(.segmented)
         case "Tone XY": XYControl(model:model,x:10,y:11,left:"Dark",right:"Bright",bottom:"Pure",top:"Rich");Text("Brightness/filter range horizontally; harmonic energy vertically.").font(.caption)
         case "Behavior XY": XYControl(model:model,x:12,y:13,left:"Soft",right:"Aggressive",bottom:"Clean",top:"Organic");Text("Excitation and drive horizontally; noise contribution vertically.").font(.caption)
-        case "Performance":
+        case "Performance · articulation layers":
             enumPicker("Voice behavior",id:18,labels:["Poly","Mono","Legato"])
             ParameterSlider(model:model,id:19,title:"Legato glide · ms",range:10...250)
             enumPicker("Articulation layer",id:20,labels:["Sustain","Trill","Staccato","Accent","Breathy","Alternate"])
@@ -66,33 +71,39 @@ struct InstrumentView: View {
             ParameterSlider(model:model,id:24,title:"Generated trill interval · semitones",range:1...12)
             ParameterSlider(model:model,id:27,title:"Maximum note duration · 0 = natural",range:0...15)
             Text("Recorded articulation layers preserve their source performance. Missing layers use the nearest model; generated trills apply to harmonic voices. Mono/Legato use last held note priority.").font(.caption)
-        case "Sources":
+        case "Reference":
             Button("Import model or add an audio anchor"){importing=true}.buttonStyle(.borderedProminent)
+            Toggle("Extract monophonic notes automatically",isOn:$model.automaticExtraction)
+            Picker("Note style",selection:$model.analysisProfile){Text("Sustained").tag("sustained");Text("Plucked / string").tag("plucked");Text("Struck / mallet").tag("struck")}.pickerStyle(.menu)
+            Picker("Anchors per octave",selection:$model.captureDensity){ForEach([1,3,6,12],id:\.self){Text("Up to \($0)").tag($0)}}.pickerStyle(.menu)
+            enumPicker("New source articulation",id:20,labels:NoteMap.roles.map{$0.capitalized})
             Stepper("Audio root: \(noteName(model.rootMidi)) · MIDI \(model.rootMidi)",value:$model.rootMidi,in:24...108)
             HStack{TextField("Start seconds",value:$model.cropStart,format:.number).textFieldStyle(.roundedBorder);TextField("End seconds",value:$model.cropEnd,format:.number).textFieldStyle(.roundedBorder)}
-            Text("For audio imports, choose the root key, source start/end and Performance articulation first. Audio is added as one anchor, up to 15 seconds. Automatic note extraction currently remains in the web analyzer; import its saved JSON to use analyzed maps here.").font(.caption)
+            Text("Set source start/end and articulation before importing. Native extraction detects stable single notes in a crop up to 15 seconds and maps sparse anchors automatically. Manual mode uses the chosen root. Polyphonic separation and automatic articulation recognition are unsupported.").font(.caption)
             ForEach(Array((model.reflection["provenance"] as? [[String:Any]] ?? []).enumerated()),id:\.offset){_,p in VStack(alignment:.leading){Text(p["filename"] as? String ?? p["archive"] as? String ?? "Reference source").font(.headline);Text("\(p["articulation"] as? String ?? "reference") · rights: \(p["rightsStatus"] as? String ?? "unverified")").font(.caption)}}
         case "DNA Edit":
             Text("Reset returns the user offset to zero while retaining analyzed/model values. Native playback currently applies attack, decay and release offsets; other measured fields remain available as model metadata.").font(.caption)
             let parameters=model.reflection["global"] as? [String:[String:Any]] ?? [:]
             ForEach(parameters.keys.sorted(),id:\.self){key in OffsetEditor(model:model,key:key,parameter:parameters[key] ?? [:])}
             if parameters.isEmpty {Text("Import an analyzed Reflection to edit its measured baseline.").foregroundColor(.secondary)}
-        case "Anchors":
-            let anchors=model.reflection["anchors"] as? [[String:Any]] ?? []
-            ForEach(Array(anchors.enumerated()),id:\.offset){_,a in DisclosureGroup("\(noteName(a["midi"] as? Int ?? 60)) · \(a["sourceFilename"] as? String ?? "model")") {
-                let parameters=a["parameters"] as? [String:[String:Any]] ?? [:]
-                ForEach(parameters.keys.sorted(),id:\.self){key in Text("\(key): \(String(describing:parameters[key]?["model"] ?? "unsupported"))").font(.caption).textSelection(.enabled)}
-                Text("Unsupported: \((a["unsupported"] as? [String] ?? []).joined(separator:", "))").font(.caption).foregroundColor(.secondary)
-            }}
-        case "Era":enumPicker("Recording Era",id:21,labels:["None","Vintage bandwidth","Warm bandwidth"]);ParameterSlider(model:model,id:22,title:"Era amount");Text("A separate adjustable bandwidth layer. These are illustrative presets, not measured historical recording chains.").font(.caption)
+        case "Detected note slices":
+            Text("Review imported web detections and manually captured anchors. Preview source slices or reconstructed notes, then add selected notes to articulation layers. Original mappings are retained.").font(.caption)
+            Button("Stop preview"){model.stopPreview()}.buttonStyle(.bordered)
+            if model.noteEntries.isEmpty {Text("Import a playable comparison from the web app to review its detected notes. Audio-free Reflections provide model previews only.")}
+            ForEach(model.noteEntries){entry in NoteReviewRow(model:model,entry:entry)}
+        case "Main · musical controls":
+            LazyVGrid(columns:[GridItem(.adaptive(minimum:180))],spacing:18){ForEach(macros.indices,id:\.self){i in ParameterSlider(model:model,id:i,title:macros[i])}}
+            Text("Each macro also has its own page with a baseline reset. Use the side arrows or Module menu to reach every control.").font(.caption)
+        case "Era DNA":enumPicker("Recording Era",id:21,labels:["None","Vintage bandwidth","Warm bandwidth"]);ParameterSlider(model:model,id:22,title:"Era amount");Text("A separate adjustable bandwidth layer. These are illustrative presets, not measured historical recording chains.").font(.caption)
         case "Output":
             ParameterSlider(model:model,id:14,title:"Master volume")
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.1.0 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native automatic analysis and independent time stretching remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.1.0 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
+    private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}
     private func enumPicker(_ title:String,id:Int,labels:[String])->some View {Picker(title,selection:Binding(get:{Int(model.value(id))},set:{model.set(id,Float($0))})){ForEach(labels.indices,id:\.self){i in Text(labels[i]).tag(i)}}.pickerStyle(.menu)}
     private func save(_ audio:Bool){do{document=PresetDocument(data:try model.exportData(includeAudio:audio));exportName=model.name+(audio ? "-playable-comparison":"-reflection");exporting=true}catch{model.status=error.localizedDescription}}
     private func macroDescription(_ index:Int)->String {[
@@ -118,4 +129,30 @@ struct OffsetEditor:View {
     let parameter:[String:Any]
     @State private var offset=0.0
     var body:some View{VStack(alignment:.leading){Text(key).font(.headline);Text("Analyzed \(String(describing:parameter["analyzed"] ?? "unknown")) · Model \(String(describing:parameter["model"] ?? "unknown")) · Confidence \(String(describing:parameter["confidence"] ?? 0))").font(.caption);HStack{TextField("User offset",value:$offset,format:.number).textFieldStyle(.roundedBorder);Button("Apply"){model.editOffset(key:key,offset:offset)};Button("Reset"){offset=0;model.editOffset(key:key,offset:0)}}}.onAppear{offset=(parameter["offset"] as? NSNumber)?.doubleValue ?? 0}}
+}
+
+struct NoteReviewRow: View {
+    @ObservedObject var model: InstrumentModel
+    let entry: NoteMap.Entry
+    var body: some View {
+        VStack(alignment:.leading,spacing:8){
+            Text("\(noteName(entry.midi)) · MIDI \(entry.midi) · \(entry.role.capitalized)").font(.headline)
+            Text(entry.anchor["sourceFilename"] as? String ?? "Imported model").font(.caption).foregroundColor(.secondary)
+            NotePreviewButtons(model:model,entry:entry)
+            Menu("Add to articulation layer") {ForEach(NoteMap.roles.filter{$0 != entry.role},id:\.self){role in Button(role.capitalized){model.addArticulation(entry,role:role)}}}
+            DisclosureGroup("Measurements"){
+                let parameters=entry.anchor["parameters"] as? [String:[String:Any]] ?? [:]
+                ForEach(parameters.keys.sorted(),id:\.self){key in Text("\(key): \(String(describing:parameters[key]?["model"] ?? "unsupported"))").font(.caption)}
+                Text("Unsupported: \((entry.anchor["unsupported"] as? [String] ?? []).joined(separator:", "))").font(.caption).foregroundColor(.secondary)
+            }
+        }.padding().frame(maxWidth:.infinity,alignment:.leading).background(Color.white.opacity(0.06)).cornerRadius(10)
+    }
+}
+private struct NotePreviewButtons:View {
+    @ObservedObject var model:InstrumentModel
+    let entry:NoteMap.Entry
+    var body:some View {LazyVGrid(columns:[GridItem(.adaptive(minimum:120))]){
+        Button("▶ Source slice"){model.preview(entry,source:true)}.disabled(!entry.hasAudio)
+        Button("▶ Model note"){model.preview(entry,source:false)}
+    }.buttonStyle(.bordered)}
 }

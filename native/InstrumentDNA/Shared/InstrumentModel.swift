@@ -17,6 +17,9 @@ final class InstrumentModel: ObservableObject {
     @Published var name = "Instrument DNA"
     @Published var status = "Ready. Play the touch surface or import a model."
     @Published var reflection: [String: Any] = [:]
+    @Published var automaticExtraction = true
+    @Published var analysisProfile = "sustained"
+    @Published var captureDensity = 3
     @Published var rootMidi = 60
     @Published var cropStart = 0.0
     @Published var cropEnd = 2.0
@@ -49,7 +52,7 @@ final class InstrumentModel: ObservableObject {
             if url.pathExtension.lowercased() == "json" {
                 let data = try Data(contentsOf: url); _ = try unit.loadModelData(data); refreshModel()
                 status = "Loaded \(name). Reflections without slices use the modeled engine."
-            } else { try importAudio(url); status = "Added \(url.lastPathComponent) at \(noteName(rootMidi)). Root pitch is assigned manually." }
+            } else { try importAudio(url) }
         } catch { status = "Import failed: \(error.localizedDescription)" }
     }
     private func importAudio(_ url: URL) throws {
@@ -63,28 +66,70 @@ final class InstrumentModel: ObservableObject {
         guard let channels = audio.floatChannelData, !format.isInterleaved, audio.frameLength > 16 else { throw ModelError("Choose an audio file that decodes to planar Float32 PCM.") }
         var mono = [Float](repeating: 0, count: Int(audio.frameLength))
         for c in 0..<Int(format.channelCount) { for i in mono.indices { mono[i] += channels[c][i]/Float(format.channelCount) } }
-        let encoded = mono.withUnsafeBytes { Data($0).base64EncodedString() }
+        let detections: [NativeAnalyzer.Detection]
+        if automaticExtraction {
+            detections = NativeAnalyzer.analyze(mono,sampleRate:format.sampleRate,profile:analysisProfile,density:captureDensity)
+            guard !detections.isEmpty else { throw ModelError("No stable monophonic notes found in this crop. Adjust the selection or disable extraction to assign a manual anchor.") }
+        } else {detections = [NativeAnalyzer.Detection(midi:rootMidi,start:0,end:Double(mono.count)/format.sampleRate,confidence:0,f0:440*pow(2,Double(rootMidi-69)/12),harmonics:[],attack:0.01)]}
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         var dna = document["reflection"] as? [String: Any] ?? document
-        if dna["format"] == nil { dna = ["format":"instrument-dna-reflection", "version":"0.5.7", "analyzerVersion":"native-manual-0.1.0", "name":name, "anchors":[], "provenance":[], "sampleSlots":[], "global":[:], "registers":[], "capture":["density":3], "performance":["layers":[:]]] }
-        dna["name"] = name
-        let roles = ["sustain","trill","staccato","accent","breathy","alternate"], role = roles[Int(value(20))]
-        let sourceID = UUID().uuidString
-        let anchor: [String: Any] = ["midi":rootMidi,"sourceId":sourceID,"sourceFilename":url.lastPathComponent,"source":"recorded slice","articulation":role,"start":start,"end":end,"confidence":["pitch":0,"overall":0],"parameters":["f0":["analyzed":440*pow(2,Double(rootMidi-69)/12),"model":440*pow(2,Double(rootMidi-69)/12),"offset":0,"confidence":0,"unit":"Hz"]],"unsupported":["automatic pitch analysis","harmonic model","source separation"]]
+        if dna["format"] == nil {dna = ["format":"instrument-dna-reflection","version":"0.5.7","name":name,"anchors":[],"provenance":[],"sampleSlots":[],"global":[:],"registers":[],"performance":["layers":[:]]]}
+        dna["name"] = name;dna["analyzerVersion"] = NativeAnalyzer.version;dna["capture"] = ["density":captureDensity,"analysisProfile":analysisProfile]
+        let role = NoteMap.roles[Int(value(20))], sourceID = UUID().uuidString
         var performance = dna["performance"] as? [String:Any] ?? [:], layers = performance["layers"] as? [String:[[String:Any]]] ?? [:]
-        layers[role] = (layers[role] ?? []).filter { ($0["midi"] as? Int) != rootMidi } + [anchor]; performance["layers"] = layers; dna["performance"] = performance
         var base = dna["anchors"] as? [[String:Any]] ?? []
-        if role == "sustain" || !base.contains(where: { ($0["midi"] as? Int)==rootMidi }) { base = base.filter { ($0["midi"] as? Int) != rootMidi } + [anchor] }
-        dna["anchors"] = base
-        var provenance = dna["provenance"] as? [[String:Any]] ?? []
-        provenance.append(["sourceId":sourceID,"filename":url.lastPathComponent,"rightsStatus":"unverified","redistributionPermitted":false,"analysisDate":ISO8601DateFormatter().string(from:Date()),"analyzerVersion":"native-manual-0.1.0","articulation":role]); dna["provenance"] = provenance
         var audioLayers = document["audioLayers"] as? [[String:Any]] ?? [], audioBase = document["audio"] as? [[String:Any]] ?? []
-        let clip: [String:Any] = ["midi":rootMidi,"sampleRate":Int(format.sampleRate),"channels":[encoded]]
-        var layered = clip; layered["layer"] = role
-        audioLayers = audioLayers.filter { !(($0["layer"] as? String)==role && ($0["midi"] as? Int)==rootMidi) } + [layered]
-        if role == "sustain" { audioBase = audioBase.filter { ($0["midi"] as? Int) != rootMidi } + [clip] }
-        document = ["format":"instrument-dna-playable-comparison","version":1,"hybridMode":"HybridOriginal","reflection":dna,"audio":audioBase,"audioLayers":audioLayers]
+        for detection in detections {
+            let midi = detection.midi
+            let parameters: [String:Any] = ["f0":["analyzed":detection.f0,"model":detection.f0,"offset":0,"confidence":detection.confidence,"unit":"Hz"],"attackSeconds":["analyzed":detection.attack,"model":detection.attack,"offset":0,"confidence":0.4],"harmonicAmplitudes":["analyzed":detection.harmonics,"model":detection.harmonics,"offset":0,"confidence":automaticExtraction ? 0.5 : 0]]
+            let anchor: [String:Any] = ["midi":midi,"sourceId":sourceID,"sourceFilename":url.lastPathComponent,"source":automaticExtraction ? "native detected note" : "recorded slice","articulation":role,"analysisProfile":analysisProfile,"start":start+detection.start,"end":start+detection.end,"confidence":["pitch":detection.confidence,"overall":detection.confidence*0.7],"parameters":parameters,"unsupported":["instrument recognition","polyphonic separation","modal resonances","noise spectrum","automatic articulation classification"]]
+            layers[role] = (layers[role] ?? []).filter{($0["midi"] as? Int) != midi} + [anchor]
+            if role == "sustain" || !base.contains(where:{($0["midi"] as? Int)==midi}) {base=base.filter{($0["midi"] as? Int) != midi}+[anchor]}
+            let lo = max(0,Int(detection.start*format.sampleRate)), hi = min(mono.count,Int(detection.end*format.sampleRate))
+            let encoded = Array(mono[lo..<hi]).withUnsafeBytes{Data($0).base64EncodedString()}
+            let clip:[String:Any] = ["midi":midi,"sampleRate":Int(format.sampleRate),"channels":[encoded]]
+            var layered=clip;layered["layer"]=role
+            audioLayers=audioLayers.filter{!(($0["layer"] as? String)==role && ($0["midi"] as? Int)==midi)}+[layered]
+            if role == "sustain" {audioBase=audioBase.filter{($0["midi"] as? Int) != midi}+[clip]}
+        }
+        performance["layers"]=layers;dna["performance"]=performance;dna["anchors"]=base
+        var provenance=dna["provenance"] as? [[String:Any]] ?? []
+        provenance.append(["sourceId":sourceID,"filename":url.lastPathComponent,"rightsStatus":"unverified","redistributionPermitted":false,"analysisDate":ISO8601DateFormatter().string(from:Date()),"analyzerVersion":NativeAnalyzer.version,"articulation":role]);dna["provenance"]=provenance
+        document=["format":"instrument-dna-playable-comparison","version":1,"hybridMode":"HybridOriginal","reflection":dna,"audio":audioBase,"audioLayers":audioLayers]
         _ = try unit.loadModelData(JSONSerialization.data(withJSONObject:document));for (id,value) in savedParameters {set(id,value)};refreshModel()
+        status = "Added \(detections.count) \(automaticExtraction ? "detected" : "manual") anchors. Review Detected note slices before saving."
+    }
+    var noteEntries: [NoteMap.Entry] {
+        let document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
+        return NoteMap.entries(document)
+    }
+    private var previewGeneration = 0
+    func stopPreview() {
+        previewGeneration += 1
+        unit.previewNote(60, layer: 0, source: false, down: false)
+    }
+    func preview(_ entry: NoteMap.Entry, source: Bool) {
+        guard !source || entry.hasAudio else { status = "This Reflection contains no source audio. Use Model preview."; return }
+        stopPreview()
+        unit.previewNote(entry.midi, layer: NoteMap.roles.firstIndex(of: entry.role) ?? 0, source: source, down: true)
+        status = "Previewing \(noteName(entry.midi)) · \(entry.role) · \(source ? "source slice" : "reconstructed model"). The host must be rendering audio."
+        let generation = previewGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            guard let self = self, self.previewGeneration == generation else { return }
+            self.stopPreview()
+        }
+    }
+    func addArticulation(_ entry: NoteMap.Entry, role: String) {
+        do {
+            let document = try JSONSerialization.jsonObject(with: exportData(includeAudio: ((try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any])?["format"] as? String == "instrument-dna-playable-comparison"))) as! [String: Any]
+            let edited = try NoteMap.copy(entry, to: role, in: document)
+            let saved = values
+            stopPreview()
+            _ = try unit.loadModelData(JSONSerialization.data(withJSONObject: edited))
+            for (id, value) in saved { set(id, value) }
+            refreshModel()
+            status = "Added \(noteName(entry.midi)) to \(role). Original anchor and measurements retained."
+        } catch { status = "Layer assignment: \(error.localizedDescription)" }
     }
     func exportData(includeAudio: Bool) throws -> Data {
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String:Any]) ?? [:]

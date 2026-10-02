@@ -17,6 +17,10 @@ jobs:
           clang -std=c11 -c native/InstrumentDNA/DSP/DNAKernel.c -o "$RUNNER_TEMP/dna-kernel.o"
           clang++ -std=c++17 -fobjc-arc -I native/InstrumentDNA/DSP -I native/InstrumentDNA/Shared native/InstrumentDNA/Tests/apple_unit_test.mm native/InstrumentDNA/Shared/DNAudioUnit.mm "$RUNNER_TEMP/dna-kernel.o" -framework Foundation -framework AVFoundation -framework AudioToolbox -o "$RUNNER_TEMP/dna-unit-test"
           "$RUNNER_TEMP/dna-unit-test"
+      - name: Test native extraction and articulation editing
+        run: |
+          swiftc native/InstrumentDNA/Shared/NativeAnalyzer.swift native/InstrumentDNA/Shared/NoteMap.swift native/InstrumentDNA/Tests/model/main.swift -o "$RUNNER_TEMP/dna-model-test"
+          "$RUNNER_TEMP/dna-model-test"
       - name: Build standalone app and embedded AUv3
         run: |
           set -o pipefail
