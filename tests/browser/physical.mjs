@@ -43,4 +43,17 @@ await page.locator('#eventList button').filter({hasText:'Listen'}).first().click
 assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}), 'Source slice preview silent');
 await page.waitForTimeout(1100);
 await page.selectOption('#mode','HybridOriginal');const key=page.locator('[data-n="69"]');await key.scrollIntoViewIfNeeded();const box=await key.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.waitForTimeout(100);assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}), 'Hybrid audition silent');await page.mouse.up();
-assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: six live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');
+// Fit a real imported PCM recording, exercise both engines and preserve comparison audio.
+const count=sr*2,plucked=Buffer.alloc(44+count*2);wav.copy(plucked,0,0,44);plucked.writeUInt32LE(36+count*2,4);plucked.writeUInt32LE(count*2,40);
+for(let i=0;i<count;i++){const hz=440,tone=.72,base=-Math.log(1000)/2;let value=0;for(let h=1;h<=4;h++){const loss=hz*Math.log(tone/Math.sqrt(1+(1-tone)**2-2*(1-tone)*Math.cos(2*Math.PI*hz*h/sr)));value+=.35/h*Math.sin(2*Math.PI*hz*h*i/sr)*Math.exp((base+loss)*i/sr);}plucked.writeInt16LE(Math.round(Math.max(-1,Math.min(1,value))*32767),44+i*2);}
+await page.locator('#file').setInputFiles({name:'plucked-reference.wav',mimeType:'audio/wav',buffer:plucked});await page.waitForFunction(()=>document.querySelector('#cropEnd').value>1.5);await page.selectOption('#analysisProfile','plucked');await page.click('#analyze');
+for(const kind of ['modal','waveguide']){
+ await page.selectOption('#fitKind',kind);await page.click('#fitPhysical');await page.waitForFunction(()=>!document.querySelector('#fitPhysical').disabled);
+ assert.equal(await page.inputValue('#mode'),'Physical',await page.textContent('#status'));
+ const save=page.waitForEvent('download');await page.click('#saveComparison');const file=await (await save).path();const comparison=JSON.parse(await fs.readFile(file,'utf8'));
+ assert(comparison.reflection.extensions.physicalFits.anchors.length>0);assert(comparison.audio.length>0);assert.equal(comparison.reflection.extensions.physicalModel.kind,kind);
+ await page.locator('#import').setInputFiles(file);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Original slices retained'));
+ for(const mode of ['Physical','HybridOriginal']){await page.selectOption('#mode',mode);const k=page.locator('[data-n="69"]');await k.scrollIntoViewIfNeeded();const b=await k.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(160);assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}),`${kind} ${mode} silent`);await page.mouse.up();await page.waitForTimeout(250);}
+}
+await page.screenshot({path:'physical-browser.png',fullPage:true});
+assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, six live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');

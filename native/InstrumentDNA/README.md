@@ -73,3 +73,10 @@ Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the 
 Report the model file, engine mode, iPad/iOS version and host used if a sound or mapping differs. Native reconstruction and time stretching are intentionally not yet at web-engine parity.
 
 Native model tests in CI additionally cover silence rejection, known pitches, sparse/chromatic capture, non-destructive articulation copying, destination collisions and JSON round trips. Portable DSP tests cover source preview isolation from held mono/legato voices and global pitch, stop and panic.
+
+## v0.3.0 · fit a physical model from recorded notes
+
+Import and review clean decaying notes, then open **Physical model** and select
+Struck/modal or Plucked/string. Fitting runs off the render/UI thread and preserves
+source slices for **Hybrid Original** comparison on Instrument map. Reflections
+save fitted parameters without audio. See [fitting details and limitations](https://github.com/diallo100x/instrument-dna-web/blob/main/docs/physical-fitting.md).

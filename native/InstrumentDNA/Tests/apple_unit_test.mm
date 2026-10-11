@@ -24,9 +24,19 @@ int main(){@autoreleasepool {
  [unit touchNote:0 midi:60 velocity:1 down:YES];double audible=0;for(int block=0;block<32;block++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));audible+=x*x;}}assert(audible>.00001);
  [unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.83;NSDictionary*physicalState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.1;unit.fullState=physicalState;assert(fabs([unit.parameterTree parameterWithAddress:DNA_DAMPING].value-.83)<.001);
  }
+ // Analyze actual PCM, load fitted per-anchor models, render, compare and recall host state.
+ std::vector<float> decayPCM(32000);for(int i=0;i<32000;i++){double value=0;for(int h=1;h<=4;h++){double tone=.72,base=-log(1000)/2,loss=440*log(tone/sqrt(1+pow(1-tone,2)-2*(1-tone)*cos(6.283185307*440*h/16000)));value+=.35/h*sin(6.283185307*440*h*i/16000)*exp((base+loss)*i/16000);}decayPCM[i]=(float)value;}
+ NSData*pcm=[NSData dataWithBytes:decayPCM.data() length:decayPCM.size()*sizeof(float)];
+ for(NSString*kind in @[@"modal",@"waveguide"]){NSError*fitError=nil;NSDictionary*fit=[DNAudioUnit fitPhysicalPCM:pcm sampleRate:16000 midi:69 kind:kind error:&fitError];assert(fit&&!fitError);assert([fit[@"model"][@"origin"] isEqual:@"analyzed"]);
+ NSMutableDictionary*fitted=[reflection mutableCopy];fitted[@"extensions"]=@{@"physicalModel":fit[@"model"],@"physicalFits":@{@"version":@1,@"anchors":@[fit]},@"nativePerformance":@{@"engineMode":@4}};
+ NSMutableDictionary*playable=[comparison mutableCopy];playable[@"reflection"]=fitted;NSData*json=[NSJSONSerialization dataWithJSONObject:playable options:0 error:nil];assert([unit loadModelData:json error:&fitError]);assert(!fitError);
+ for(int mode=0;mode<=4;mode+=4){[unit panic];[unit.parameterTree parameterWithAddress:DNA_ENGINE_MODE].value=mode;[unit touchNote:0 midi:69 velocity:.8 down:YES];double power=0;for(int b=0;b<24;b++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));power+=x*x;}}assert(power>1e-5);}
+ NSDictionary*saved=unit.fullState;unit.fullState=saved;assert([unit.modelData isEqual:json]);
+ NSMutableDictionary*bad=[fitted mutableCopy];bad[@"extensions"]=@{@"physicalModel":fit[@"model"],@"physicalFits":@[]};NSError*invalidError=nil;assert(![unit loadModelData:[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil] error:&invalidError]);assert(invalidError);
+ }
  NSData*baseJSON=[NSData dataWithContentsOfFile:@"presets/factory/marimba.json"];
  for(int variant=0;variant<4;variant++){NSMutableDictionary*bad=[NSJSONSerialization JSONObjectWithData:baseJSON options:NSJSONReadingMutableContainers error:nil];NSMutableDictionary*ext=bad[@"extensions"];NSMutableDictionary*physical=ext[@"physicalModel"];
  if(variant==0)physical[@"version"]=@1.2;if(variant==1)physical[@"continuous"]=@.5;if(variant==2)physical[@"modes"][0][@"ratio"]=[NSNull null];if(variant==3)ext[@"physicalControls"]=@{@"damping":@"wrong"};
  NSData*invalid=[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil];NSError*rejected=nil;assert(![unit loadModelData:invalid error:&rejected]);assert(rejected);}
- [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
+ [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: PCM modal/string fitting and Hybrid comparison, model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
 }}
