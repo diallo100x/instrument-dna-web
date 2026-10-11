@@ -3,5 +3,11 @@
 #include "DNAPhysical.h"
 // Analysis only: allocates scratch memory; never call on the audio render thread.
 typedef struct {DNAPhysicalModel model;float confidence,loss_error,frequencies[16],r2[16],observed[16];} DNAPhysicalFit;
+#ifdef __cplusplus
+extern "C" {
+#endif
 int dna_physical_fit(const float *pcm,int length,double rate,int midi,int kind,DNAPhysicalFit *fit);
+#ifdef __cplusplus
+}
+#endif
 #endif
