@@ -2,6 +2,8 @@
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 export function validatePhysicalModel(m){
  if(!m||m.version!==1||!['modal','waveguide'].includes(m.kind)||typeof m.continuous!=='boolean'||!Array.isArray(m.modes)||m.modes.length<1||m.modes.length>16)throw Error('Unsupported physical model');
+ if(m.waveguideTone!==undefined&&(!Number.isFinite(m.waveguideTone)||m.waveguideTone<.05||m.waveguideTone>.98))throw Error('Invalid waveguide loss tone');
+ if(m.lossSampleRate!==undefined&&(!Number.isFinite(m.lossSampleRate)||m.lossSampleRate<8000||m.lossSampleRate>192000))throw Error('Invalid loss sample rate');
  for(const [key,lo,hi] of [['hardness',0,1],['position',0,1],['noise',0,1],['decay',.05,15]])if(!Number.isFinite(m[key])||m[key]<lo||m[key]>hi)throw Error(`Invalid physical ${key}`);
  if(m.modes.some(x=>!x||!Number.isFinite(x.ratio)||x.ratio<.25||x.ratio>64||!Number.isFinite(x.gain)||x.gain<0||x.gain>1||!Number.isFinite(x.t60)||x.t60<.02||x.t60>15))throw Error('Invalid physical modes');return m;
 }
@@ -12,7 +14,8 @@ export class PhysicalVoice {
   hz=clamp(hz,40,sr*.4);this.random=(Math.imul(this.random,1664525)+1013904223)>>>0;const noise=this.random/4294967295*2-1;
   const cutoff=500+hardness**2*14000*(.3+.7*v),coefficient=1-Math.exp(-2*Math.PI*Math.min(cutoff,sr*.45)/sr);this.exciter+=coefficient*(noise-this.exciter);let output=0;
   if(m.kind==='waveguide'){
-   const tone=clamp(.2+.7*hardness+.08*v,.2,.98),delay=clamp(sr/hz-.5,2,8189),whole=Math.floor(delay),fraction=delay-whole;
+   const fittedTone=m.waveguideTone?1-Math.pow(1-m.waveguideTone,(m.lossSampleRate??sr)/sr):0;
+   const tone=m.waveguideTone?clamp(fittedTone+(hardness-m.hardness)*.3,.01,.99):clamp(.2+.7*hardness+.08*v,.2,.98),delay=clamp(sr/hz-(m.waveguideTone?(1-tone)/tone:.5),2,8189),whole=Math.floor(delay),fraction=delay-whole;
    const at=(this.write+8192-whole)%8192,previous=(at+8191)%8192,delayed=this.delay[at]*(1-fraction)+this.delay[previous]*fraction;
    const feedback=Math.exp(-6.907755*delay/(sr*m.decay*(1.5-damping)));this.loop+=tone*(delayed-this.loop);
    const pluck=this.age<1/hz?this.exciter*(.35+.65*v):0,comb=(this.write+8192-Math.floor(Math.max(1,delay*position)))%8192;
@@ -21,7 +24,7 @@ export class PhysicalVoice {
    if(this.frame%32===0)for(let i=0;i<m.modes.length;i++){
     const mode=m.modes[i],frequency=hz*mode.ratio,t60=mode.t60*(1.5-damping),r=Math.exp(-6.907755/(t60*sr)),angle=2*Math.PI*Math.min(frequency,sr*.45)/sr;
     this.a1[i]=2*r*Math.cos(angle);this.a2[i]=-r*r;
-    const spectral=Math.pow(clamp(.3+.7*hardness*v+.35*richness,.15,1),Math.log2(Math.max(1,mode.ratio))),hit=i===0?1:.25+.75*Math.abs(Math.sin(Math.PI*position*mode.ratio));
+    const spectral=Math.pow(m.origin==='analyzed'?clamp(1+(hardness-m.hardness)*.7+(richness-.5)*.35+(v-100/127)*.3,.15,1.5):clamp(.3+.7*hardness*v+.35*richness,.15,1),Math.log2(Math.max(1,mode.ratio))),hit=i===0?1:m.origin==='analyzed'?(.25+.75*Math.abs(Math.sin(Math.PI*position*mode.ratio)))/(.25+.75*Math.abs(Math.sin(Math.PI*.5*mode.ratio))):.25+.75*Math.abs(Math.sin(Math.PI*position*mode.ratio));
     this.inputGain[i]=frequency<sr*.45?mode.gain*spectral*hit*Math.sin(angle):0;
    }
    const width=.001+(1-hardness)*.012;let excitation=(this.frame===0?1:0)+this.exciter*noiseAmount*.08*Math.exp(-this.age/width);
