@@ -19,9 +19,9 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
  _output=[[AUAudioUnitBus alloc] initWithFormat:[[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:2] error:error];if(!_output)return nil;
  _outputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeOutput busses:@[_output]];
  _inputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeInput busses:@[]];
- NSArray*names=@[@"Attack",@"Body",@"Brightness",@"Harmonics",@"Noise",@"Resonance",@"Dynamics",@"Articulation",@"Movement",@"Drive",@"Tone X",@"Tone Y",@"Behavior X",@"Behavior Y",@"Volume",@"Global Bend",@"Modulation",@"Bend Range",@"Voice Mode",@"Legato Glide",@"Articulation Layer",@"Recording Era",@"Era Amount",@"Trill Rate",@"Trill Interval",@"Velocity Trill",@"Trill Threshold",@"Note Length",@"Engine Mode"];
+ NSArray*names=@[@"Attack",@"Body",@"Brightness",@"Harmonics",@"Noise",@"Resonance",@"Dynamics",@"Articulation",@"Movement",@"Drive",@"Tone X",@"Tone Y",@"Behavior X",@"Behavior Y",@"Volume",@"Global Bend",@"Modulation",@"Bend Range",@"Voice Mode",@"Legato Glide",@"Articulation Layer",@"Recording Era",@"Era Amount",@"Trill Rate",@"Trill Interval",@"Velocity Trill",@"Trill Threshold",@"Note Length",@"Engine Mode",@"Exciter Hardness",@"Strike Position",@"Damping",@"Exciter Noise"];
  NSMutableArray*parameters=[NSMutableArray array];for(int i=0;i<DNA_PARAMETER_COUNT;i++){
-  float lo=0,hi=1;if(i==DNA_PITCH)lo=-1;if(i==DNA_BEND_RANGE)hi=48;if(i==DNA_VOICE_MODE||i==DNA_ERA)hi=2;if(i==DNA_GLIDE){lo=10;hi=250;}if(i==DNA_LAYER)hi=5;if(i==DNA_TRILL_RATE){lo=3;hi=15;}if(i==DNA_TRILL_INTERVAL){lo=1;hi=12;}if(i==DNA_TRILL_THRESHOLD){lo=1;hi=127;}if(i==DNA_NOTE_LENGTH)hi=15;if(i==DNA_ENGINE_MODE)hi=3;
+  float lo=0,hi=1;if(i==DNA_PITCH)lo=-1;if(i==DNA_BEND_RANGE)hi=48;if(i==DNA_VOICE_MODE||i==DNA_ERA)hi=2;if(i==DNA_GLIDE){lo=10;hi=250;}if(i==DNA_LAYER)hi=5;if(i==DNA_TRILL_RATE){lo=3;hi=15;}if(i==DNA_TRILL_INTERVAL){lo=1;hi=12;}if(i==DNA_TRILL_THRESHOLD){lo=1;hi=127;}if(i==DNA_NOTE_LENGTH)hi=15;if(i==DNA_ENGINE_MODE)hi=4;
   AUParameter*p=[AUParameterTree createParameterWithIdentifier:[NSString stringWithFormat:@"dna%d",i] name:names[i] address:i min:lo max:hi unit:kAudioUnitParameterUnit_Generic unitName:nil flags:kAudioUnitParameterFlag_IsReadable|kAudioUnitParameterFlag_IsWritable|kAudioUnitParameterFlag_CanRamp valueStrings:nil dependentParameters:nil];p.value=dna_parameter_get(_kernel,i);[parameters addObject:p];
  }
  _tree=[AUParameterTree createTreeWithChildren:parameters];DNAKernel*k=_kernel;
@@ -73,6 +73,17 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
  NSDictionary*document=parsed;BOOL comparison=[document[@"format"] isEqual:@"instrument-dna-playable-comparison"];NSDictionary*reflection=comparison?document[@"reflection"]:document;
  if(![reflection isKindOfClass:NSDictionary.class]||![reflection[@"format"] isEqual:@"instrument-dna-reflection"]||![reflection[@"anchors"] isKindOfClass:NSArray.class]){if(error)*error=Failure(@"Choose an Instrument DNA Reflection or playable comparison");return NO;}
  DNABank*bank=dna_bank_create();if(!bank){if(error)*error=Failure(@"Cannot allocate model");return NO;}
+ NSDictionary*physical=reflection[@"extensions"][@"physicalModel"];
+ if(physical){
+  if(![physical isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical model object");return NO;}
+  for(NSString*key in @[@"version",@"continuous",@"hardness",@"position",@"noise",@"decay"]){if(![physical[key] isKindOfClass:NSNumber.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Physical model fields must be numbers");return NO;}}
+  if([physical[@"continuous"] intValue]<0||[physical[@"continuous"] intValue]>1){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid continuous excitation flag");return NO;}
+  DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:-1;
+  NSArray*modes=physical[@"modes"];m.count=[modes isKindOfClass:NSArray.class]?(int)modes.count:0;m.continuous=[physical[@"continuous"] boolValue];m.hardness=[physical[@"hardness"] floatValue];m.position=[physical[@"position"] floatValue];m.noise=[physical[@"noise"] floatValue];m.decay=[physical[@"decay"] floatValue];
+  if(m.count<1||m.count>16){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical mode count");return NO;}
+  for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];}
+  if(!dna_bank_physical(bank,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Unsupported or invalid physical model");return NO;}
+ }
  NSArray*layers=LayerNames();BOOL valid=YES;NSUInteger sampleBytes=0;
  for(int layer=0;layer<DNA_LAYERS;layer++){NSArray*anchors=layer==0?reflection[@"anchors"]:reflection[@"performance"][@"layers"][layers[layer]];if(![anchors isKindOfClass:NSArray.class])continue;if(anchors.count>128){valid=NO;break;}
   // Sustain-specific anchors take precedence over the legacy base map.
@@ -94,6 +105,7 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
  NSDictionary*xy=reflection[@"xy"];for(NSString*name in @[@"tone",@"behavior"]){NSArray*pair=xy[name];int base=[name isEqualToString:@"tone"]?DNA_TONE_X:DNA_BEHAVIOR_X;if([pair isKindOfClass:NSArray.class]&&pair.count==2)for(int i=0;i<2;i++)if([pair[i] isKindOfClass:NSNumber.class])[_tree parameterWithAddress:base+i].value=[pair[i] floatValue];}
  NSDictionary*era=reflection[@"era"];NSUInteger eraIndex=[@[@"none",@"vintage",@"tape"] indexOfObject:era[@"recording"]?:@"none"];[_tree parameterWithAddress:DNA_ERA].value=eraIndex<3?eraIndex:0;if([era[@"amount"] isKindOfClass:NSNumber.class])[_tree parameterWithAddress:DNA_ERA_AMOUNT].value=[era[@"amount"] floatValue];
  NSDictionary*native=reflection[@"extensions"][@"nativePerformance"];NSDictionary*nativeMap=@{@"bendRange":@(DNA_BEND_RANGE),@"modulation":@(DNA_MODULATION),@"engineMode":@(DNA_ENGINE_MODE),@"volume":@(DNA_VOLUME)};for(NSString*key in nativeMap)if([native[key] isKindOfClass:NSNumber.class])[_tree parameterWithAddress:[nativeMap[key] unsignedLongLongValue]].value=[native[key] floatValue];
+ if(physical){NSDictionary*edits=reflection[@"extensions"][@"physicalControls"]?:@{};NSArray*keys=@[@"hardness",@"position",@"damping",@"noise"];for(int i=0;i<4;i++){NSString*key=keys[i];NSNumber*value=edits[key]?:physical[key]?:@.5;[_tree parameterWithAddress:DNA_HARDNESS+i].value=value.floatValue;}}
  __weak DNAudioUnit*weak=self;dispatch_async(dispatch_get_main_queue(),^{if(weak)[NSNotificationCenter.defaultCenter postNotificationName:@"InstrumentDNAModelChanged" object:weak];});
  return YES;
 }

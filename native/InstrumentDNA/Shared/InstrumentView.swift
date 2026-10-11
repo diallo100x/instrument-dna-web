@@ -13,7 +13,7 @@ struct InstrumentView: View {
     @State private var document=PresetDocument(data:Data())
     @State private var exportName="Instrument DNA"
     private let macros=["Attack","Body","Brightness","Harmonics","Noise","Resonance","Dynamics","Articulation","Movement","Drive"]
-    private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Era DNA","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
+    private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Era DNA","Physical model","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
     var body:some View {
         GeometryReader { geometry in
             if geometry.size.height<380 { ScrollView { layout(controlHeight:220,surfaceHeight:180) } }
@@ -54,8 +54,9 @@ struct InstrumentView: View {
         if let index=macros.firstIndex(of:tab) { ParameterSlider(model:model,id:index,title:macros[index]);Text(macroDescription(index)).font(.callout);Button("Reset macro to model baseline"){model.set(index,(model.reflection["macros"] as? [String:NSNumber])?[macros[index]]?.floatValue ?? 0.5)} }
         else {switch tab {
         case "Instrument map":
+            Menu("Factory instruments") {ForEach(Array(InstrumentModel.factoryPresets.enumerated()),id:\.offset){_,preset in Button(preset["name"] ?? "Instrument"){model.loadFactory(preset["id"] ?? "")}}}.buttonStyle(.borderedProminent)
             TextField("Model name",text:$model.name).textFieldStyle(.roundedBorder)
-            enumPicker("Engine",id:28,labels:["Hybrid · Original","Reconstructed","Sample follow","Mallet"])
+            enumPicker("Engine",id:28,labels:["Hybrid · Original","Reconstructed","Sample follow","Mallet","Physical model"])
             Text("Original uses exact recorded anchors and harmonic modeling between them. Sample follow transposes a nearby anchor; pitch and duration remain linked in this native first version.").font(.caption).foregroundColor(.secondary)
             HStack{Button("Import model / audio"){importing=true};Button("Save Reflection"){save(false)};Button("Save playable comparison"){save(true)}}.buttonStyle(.bordered)
             Picker("Visible keyboard keys",selection:$noteCount){Text("12").tag(12);Text("24").tag(24);Text("36").tag(36)}.pickerStyle(.segmented)
@@ -81,6 +82,13 @@ struct InstrumentView: View {
             HStack{TextField("Start seconds",value:$model.cropStart,format:.number).textFieldStyle(.roundedBorder);TextField("End seconds",value:$model.cropEnd,format:.number).textFieldStyle(.roundedBorder)}
             Text("Set source start/end and articulation before importing. Native extraction detects stable single notes in a crop up to 15 seconds and maps sparse anchors automatically. Manual mode uses the chosen root. Polyphonic separation and automatic articulation recognition are unsupported.").font(.caption)
             ForEach(Array((model.reflection["provenance"] as? [[String:Any]] ?? []).enumerated()),id:\.offset){_,p in VStack(alignment:.leading){Text(p["filename"] as? String ?? p["archive"] as? String ?? "Reference source").font(.headline);Text("\(p["articulation"] as? String ?? "reference") · rights: \(p["rightsStatus"] as? String ?? "unverified")").font(.caption)}}
+        case "Physical model":
+            Text("Authored modal bodies and fractional-delay plucked strings. Load a factory instrument on Instrument map; these controls change excitation and body response without altering its original design.").font(.caption)
+            ParameterSlider(model:model,id:29,title:"Exciter hardness")
+            ParameterSlider(model:model,id:30,title:"Strike / pluck position")
+            ParameterSlider(model:model,id:31,title:"Damping")
+            ParameterSlider(model:model,id:32,title:"Exciter noise")
+            Button("Reset physical controls to design"){let physical=(model.reflection["extensions"] as? [String:Any])?["physicalModel"] as? [String:Any] ?? [:];for (i,key) in ["hardness","position","damping","noise"].enumerated(){model.set(29+i,(physical[key] as? NSNumber)?.floatValue ?? 0.5)}}
         case "DNA Edit":
             Text("Reset returns the user offset to zero while retaining analyzed/model values. Native playback currently applies attack, decay and release offsets; other measured fields remain available as model metadata.").font(.caption)
             let parameters=model.reflection["global"] as? [String:[String:Any]] ?? [:]
@@ -100,7 +108,7 @@ struct InstrumentView: View {
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.1.0 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.2.0 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}

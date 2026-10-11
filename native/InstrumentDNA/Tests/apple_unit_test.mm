@@ -18,5 +18,11 @@ int main(){@autoreleasepool {
  assert([unit allocateRenderResourcesAndReturnError:&error]);[unit touchNote:0 midi:69 velocity:1 down:YES];
  float left[512]={0},right[512]={0};struct {UInt32 count;AudioBuffer buffers[2];} output={2,{{1,sizeof(left),left},{1,sizeof(right),right}}};AudioTimeStamp time={0};time.mFlags=kAudioTimeStampSampleTimeValid;AudioUnitRenderActionFlags flags=0;
  auto render=unit.internalRenderBlock;assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);double energy=0;for(float x:left){assert(std::isfinite(x));energy+=x*x;}assert(energy>.001);
- [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: model/sample import, 29 parameters, XY/Era recall, host state and audible render passed.");
+ [unit panic];
+ NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe"];
+ for(NSString*name in factory){NSData*json=[NSData dataWithContentsOfFile:[NSString stringWithFormat:@"presets/factory/%@.json",name]];assert(json);assert([unit loadModelData:json error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_ENGINE_MODE].value==4);
+ [unit touchNote:0 midi:60 velocity:1 down:YES];double audible=0;for(int block=0;block<32;block++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));audible+=x*x;}}assert(audible>.00001);
+ [unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.83;NSDictionary*physicalState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.1;unit.fullState=physicalState;assert(fabs([unit.parameterTree parameterWithAddress:DNA_DAMPING].value-.83)<.001);
+ }
+ [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
 }}

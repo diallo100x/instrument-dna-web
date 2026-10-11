@@ -46,6 +46,17 @@ final class InstrumentModel: ObservableObject {
         reflection = document["reflection"] as? [String: Any] ?? document
         name = reflection["name"] as? String ?? "Instrument DNA"
     }
+    static var factoryPresets: [[String:String]] {
+        guard let url=Bundle(for:DNAudioUnit.self).url(forResource:"manifest",withExtension:"json"),let data=try? Data(contentsOf:url) else {return []}
+        return (try? JSONSerialization.jsonObject(with:data) as? [[String:String]]) ?? []
+    }
+    func loadFactory(_ id:String) {
+        do {
+            guard let url=Bundle(for:DNAudioUnit.self).url(forResource:id,withExtension:"json") else {throw ModelError("Factory preset unavailable.")}
+            stopPreview();_ = try unit.loadModelData(Data(contentsOf:url));refreshModel();set(28,4)
+            status="Loaded \(name). Authored physical model; no reference audio required."
+        }catch{status="Factory load failed: \(error.localizedDescription)"}
+    }
     func importFile(_ url: URL) {
         let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
         do {
@@ -56,7 +67,7 @@ final class InstrumentModel: ObservableObject {
         } catch { status = "Import failed: \(error.localizedDescription)" }
     }
     private func importAudio(_ url: URL) throws {
-        let savedParameters = values
+        var savedParameters = values
         let file = try AVAudioFile(forReading: url), format = file.processingFormat
         let start = max(0, cropStart), end = min(Double(file.length) / format.sampleRate, cropEnd)
         guard end > start, end-start <= 15 else { throw ModelError("Select a nonempty passage of at most 15 seconds.") }
@@ -73,6 +84,7 @@ final class InstrumentModel: ObservableObject {
         } else {detections = [NativeAnalyzer.Detection(midi:rootMidi,start:0,end:Double(mono.count)/format.sampleRate,confidence:0,f0:440*pow(2,Double(rootMidi-69)/12),harmonics:[],attack:0.01)]}
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         var dna = document["reflection"] as? [String: Any] ?? document
+        if (dna["extensions"] as? [String:Any])?["physicalModel"] != nil {document=[:];dna=[:];savedParameters[28]=0}
         if dna["format"] == nil {dna = ["format":"instrument-dna-reflection","version":"0.5.7","name":name,"anchors":[],"provenance":[],"sampleSlots":[],"global":[:],"registers":[],"performance":["layers":[:]]]}
         dna["name"] = name;dna["analyzerVersion"] = NativeAnalyzer.version;dna["capture"] = ["density":captureDensity,"analysisProfile":analysisProfile]
         let role = NoteMap.roles[Int(value(20))], sourceID = UUID().uuidString
@@ -144,7 +156,7 @@ final class InstrumentModel: ObservableObject {
         performance["selectedArticulation"] = ["sustain","trill","staccato","accent","breathy","alternate"][Int(value(20))]
         performance["velocityTrill"] = value(25) > 0.5;performance["trillThreshold"] = value(26);performance["trillRateHz"] = value(23);performance["trillInterval"] = value(24);performance["noteLengthSeconds"] = value(27)
         dna["performance"] = performance;dna["era"] = ["recording":["none","vintage","tape"][Int(value(21))],"amount":value(22)]
-        var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];dna["extensions"] = ext
+        var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};dna["extensions"] = ext
         if includeAudio && document["format"] as? String != "instrument-dna-playable-comparison" { throw ModelError("This Reflection contains no source slices. Save it as a Reflection.") }
         if includeAudio && document["format"] as? String == "instrument-dna-playable-comparison" { document["reflection"] = dna; return try JSONSerialization.data(withJSONObject:document,options:.sortedKeys) }
         return try JSONSerialization.data(withJSONObject:dna,options:.sortedKeys)

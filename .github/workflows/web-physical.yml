@@ -1,0 +1,28 @@
+name: Web physical instrument acceptance
+on:
+  push:
+    paths: ['src/**', 'index.html', 'tests/**', 'presets/**', '.github/workflows/web-physical.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Live browser audio and preset acceptance
+        run: |
+          python3 -m http.server 8000 > /tmp/dna-server.log 2>&1 &
+          node tests/browser/physical.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: physical-browser
+          path: physical-browser.png

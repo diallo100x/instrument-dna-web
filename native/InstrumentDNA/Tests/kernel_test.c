@@ -26,4 +26,14 @@ static void preview_test(void){
  dna_preview(k,69,1,1,0);render(k);assert(component(880)<.001);assert(component(261.63)>.02);
  dna_preview(k,69,1,0,1);render(k);assert(energy()>.0001);dna_all_notes_off(k);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);
 }
-int main(void){preview_test();panic_test();pitch_test();independent_test();mono_test();midi_test();sample_layers_test();publication_test();puts("Native DSP: output, independent/global bend, legato priority, MPE, sustain, sample layers, struck-note panic and concurrent model publication passed.");return 0;}
+static void physical_test(void){
+ DNAPhysicalModel m={.version=1,.kind=0,.count=3,.continuous=0,.ratios={1,3.98,9.92},.gains={1,.45,.22},.t60={1.5,.7,.28},.hardness=.6,.position=.25,.noise=.15,.decay=1.5};
+ assert(dna_physical_valid(&m));DNAPhysicalModel bad=m;bad.t60[0]=INFINITY;assert(!dna_physical_valid(&bad));
+ for(int kind=0;kind<2;kind++){
+  DNAKernel*k=dna_kernel_create(SR);DNABank*b=dna_bank_create();m.kind=kind;assert(dna_bank_physical(b,&m));dna_bank_publish(k,b);dna_parameter_set(k,DNA_ENGINE_MODE,4);dna_note_set(k,0,69,1,1);render(k);assert(energy()>1e-8);assert(component(440)>.0001);
+  dna_all_notes_off(k);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);
+ }
+ // All advertised sample rates and high/low pitches remain finite, including bends.
+ for(int rate=24000;rate<=192000;rate*=2){DNAPhysicalState*s=malloc(sizeof(*s));dna_physical_reset(s);DNAPhysicalControls c={1,.9,.25,.2,.8,.8,.8,.7,.9};for(int i=0;i<rate;i++){float x=dna_physical_tick(s,&m,rate,i<rate/2?65:2093,c);assert(isfinite(x));assert(fabsf(x)<=1);}free(s);}
+}
+int main(void){physical_test();preview_test();panic_test();pitch_test();independent_test();mono_test();midi_test();sample_layers_test();publication_test();puts("Native DSP: output, independent/global bend, legato priority, MPE, sustain, sample layers, struck-note panic and concurrent model publication passed.");return 0;}
