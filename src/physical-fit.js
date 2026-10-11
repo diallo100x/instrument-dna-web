@@ -1,5 +1,5 @@
 // Independently authored, deterministic fitting of isolated decaying notes.
-import {validatePhysicalModel} from './physical.js';
+import {validatePhysicalModel} from './physical.js?v=0.7.0';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export const FIT_VERSION='physical-fit-1';
 function spectrum(a,sr){

@@ -1,4 +1,4 @@
-import {PhysicalVoice} from './physical.js';
+import {PhysicalVoice} from './physical.js?v=0.7.0';
 class PhysicalProcessor extends AudioWorkletProcessor {
  static get parameterDescriptors(){return ['frequency','velocity','hardness','position','damping','noise','richness','body','drive','brightness','attack','movement'].map(name=>({name,defaultValue:name==='frequency'?440:name==='velocity'?.8:name==='attack'?.005:name==='movement'?0:.5,automationRate:name==='frequency'?'a-rate':'k-rate'}));}
  constructor(options){super();this.voice=new PhysicalVoice(options.processorOptions.model,sampleRate);this.running=false;this.release=null;this.end=null;this.envelope=0;this.finished=false;this.port.onmessage=e=>{if(e.data.type==='start')this.running=true;if(e.data.type==='stop')this.end=e.data.time;};}

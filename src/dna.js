@@ -1,4 +1,4 @@
-import {validatePhysicalModel} from './physical.js';
+import {validatePhysicalModel} from './physical.js?v=0.7.0';
 import {suggestedModelName} from './model-name.js';
 export const VERSION='0.6.0';
 export const DENSITIES=[1,3,6,12];

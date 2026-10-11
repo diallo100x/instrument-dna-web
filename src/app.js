@@ -1,6 +1,6 @@
-import {fitPhysicalNote,physicalModelAt,FIT_VERSION} from './physical-fit.js';
-import {validatePhysicalModel} from './physical.js';
-import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.6.0';
+import {fitPhysicalNote,physicalModelAt,FIT_VERSION} from './physical-fit.js?v=0.7.0';
+import {validatePhysicalModel} from './physical.js?v=0.7.0';
+import {emptyReflection,importReflection,serializable,modelAt,midiName,MACROS,clamp,value,param,buildHierarchy} from './dna.js?v=0.7.0';
 import {analyzeBuffer,selectAnchors} from './analyzer.js?v=0.5.7';
 import {decodeAudioFile} from './audio-import.js';
 import {cropBounds,cropBuffer} from './crop.js?v=0.3.8';
@@ -14,7 +14,7 @@ import {previousHeld,transitionFrom,glideSeconds,glideRatio} from './voice-polic
 import {suggestedModelName,modelFilename} from './model-name.js?v=0.5.2';
 const A=window.AudioContext||window.webkitAudioContext,ctx=new A(),$=id=>document.getElementById(id);let dna=emptyReflection(),buffer=null,clips=new Map(),layerClips=new Map(),sustainDNA=null,renderCache=new Map(),active=new Map(),held=new Map(),detectedEvents=[],sourceBuffers=new Map(),currentSourceId=null,currentFilename='',retainedClips=new Map(),retainedLayerClips=new Map(),compare='B',modelNameEdited=false;const audioState=message=>$('audioStatus').textContent=`Audio: ${message} (context ${ctx.state}, ${ctx.sampleRate} Hz)`;ctx.onstatechange=()=>{if($('audioStatus').textContent.includes('waiting for a click'))audioState('state changed')};
 let physicalInitialized=false;
-const physicalReady=ctx.audioWorklet ? ctx.audioWorklet.addModule('./src/physical-worklet.js?v=0.6.0').then(()=>{physicalInitialized=true}).catch(error=>{console.warn('Physical engine unavailable',error);return false}) : Promise.resolve(false);
+const physicalReady=ctx.audioWorklet ? ctx.audioWorklet.addModule('./src/physical-worklet.js?v=0.7.0').then(()=>{physicalInitialized=true}).catch(error=>{console.warn('Physical engine unavailable',error);return false}) : Promise.resolve(false);
 function physicalSettings(){const model=dna.extensions?.physicalModel;return {...{hardness:model?.hardness??.5,position:model?.position??.25,damping:.5,noise:model?.noise??.2},...dna.extensions?.physicalControls};}
 function physicalParameters(){const controls=physicalSettings();return {...controls,damping:clamp(controls.damping-(dna.macros.Resonance-.5)*.6),hardness:clamp(controls.hardness+(dna.xy.behavior[0]-.5)*.3),noise:clamp(controls.noise+dna.macros.Noise-.5+(dna.xy.behavior[1]-.5)*.2),richness:clamp(dna.macros.Harmonics+dna.xy.tone[1]-.5),body:dna.macros.Body,brightness:clamp(dna.macros.Brightness+(dna.xy.tone[0]-.5)*.5),drive:clamp(dna.macros.Drive-.5+(dna.xy.behavior[0]-.5)*.4),movement:Math.max(0,dna.macros.Movement-.5),attack:.005*(1.5-dna.macros.Attack)*(1.5-dna.macros.Articulation)};}
 function updatePhysicalVoices(){for(const voice of active.values())if(voice.physical)for(const [key,value] of Object.entries(physicalParameters()))voice.source.parameters.get(key)?.setTargetAtTime(value,ctx.currentTime,.02);}
