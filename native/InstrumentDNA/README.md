@@ -2,6 +2,8 @@
 
 An additive native iPhone/iPad app and embedded AUv3 music instrument. Existing web hybrid/sample and mallet playback remain available. Pre-native baseline: `660dc2afa73c01faa8b8bfb5efffa27a6eb94f40`.
 
+See [native 0.2.1 editor compatibility notes](KOALA_EDITOR_021.md) for the host startup fix and Koala retest steps.
+
 ## Build and install
 
 Requires a Mac with current Xcode and iOS/iPadOS 15.4 or later. Open `InstrumentDNA.xcodeproj`, choose the **InstrumentDNA** scheme (the containing app), select your signing team for both targets, then run on your device. Launch the app once. In an AUv3 host such as Logic Pro for iPad or AUM, add **Diallo Beats Audio Lab: Instrument DNA** as an instrument. Do not install/run the extension target by itself.
@@ -29,7 +31,7 @@ Open **Instrument map → Factory instruments**, choose Warm Marimba, Wooden Kal
 
 The **Physical model** page exposes hardness, strike/pluck position, damping and exciter noise. Main macros and XY controls remain available. Save Reflection retains the original authored design and separate edited controls without embedding WAV files. Importing new source audio starts an analyzed model rather than claiming these authored resonances were learned from it.
 
-These are original Diallo Beats Audio Lab designs built with modal excitation or a fractional-delay string loop. No RipplerX, Resonarium or Faust code/presets are bundled. The Reed Pipe is continuously excited odd modal resonances, not a nonlinear reed/mouthpiece simulation. See [physical modeling](../../docs/physical-modeling.md) for the schema, provenance and limitations.
+These are original Diallo Beats Audio Lab designs built with modal excitation or a fractional-delay string loop. No RipplerX, Resonarium or Faust code/presets are bundled. The Reed Pipe is continuously excited odd modal resonances, not a nonlinear reed/mouthpiece simulation. See [physical modeling](https://github.com/diallo100x/instrument-dna-web/blob/main/docs/physical-modeling.md) for the schema, provenance and limitations.
 
 ## Native extraction and note review
 
@@ -55,7 +57,7 @@ Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitiz
 
 .github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation. The iPad simulator reached the playable interface with audio initialized; first-boot timing required a longer CI timeout.
 
-The physical update passed browser audio/console checks, all six Apple factory renders and iPad simulator startup; see [the verification report](../../docs/physical-update-report.md).
+The physical update passed browser audio/console checks, all six Apple factory renders and iPad simulator startup; see [the verification report](https://github.com/diallo100x/instrument-dna-web/blob/main/docs/physical-update-report.md).
 
 Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the latest Actions result. Real-device touch/audio latency, Bluetooth MIDI, AU host view resizing, parameter automation and session restoration require device/host acceptance testing before shipping. A simulator compile alone does not establish those behaviors.
 
