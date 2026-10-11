@@ -5,6 +5,7 @@ import AudioToolbox
 enum EditorSmokeTest {
     static func run() {
         precondition(Thread.isMainThread)
+        PhysicalFitSmokeTest.run()
         let description = AudioComponentDescription(componentType: kAudioUnitType_MusicDevice,
             componentSubType: 0x496e444e, componentManufacturer: 0x4462414c,
             componentFlags: 0, componentFlagsMask: 0)

@@ -43,6 +43,7 @@ jobs:
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
           xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
           grep -q INSTRUMENT_DNA_READY "$RUNNER_TEMP/native-app.log"
+          grep -q INSTRUMENT_DNA_FITTING_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_EDITOR_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
       - name: Collect simulator crash diagnostics
         if: always()

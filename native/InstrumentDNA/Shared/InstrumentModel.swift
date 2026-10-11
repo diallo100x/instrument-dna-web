@@ -206,7 +206,7 @@ final class InstrumentModel: ObservableObject {
         dna["performance"] = performance;dna["era"] = ["recording":["none","vintage","tape"][Int(value(21))],"amount":value(22)]
         var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};dna["extensions"] = ext
         if includeAudio && document["format"] as? String != "instrument-dna-playable-comparison" { throw ModelError("This Reflection contains no source slices. Save it as a Reflection.") }
-        if includeAudio && document["format"] as? String == "instrument-dna-playable-comparison" { document["reflection"] = dna; return try JSONSerialization.data(withJSONObject:document,options:.sortedKeys) }
+        if includeAudio && document["format"] as? String == "instrument-dna-playable-comparison" { document["reflection"] = dna;document["hybridMode"] = value(28)==4 ? "Physical" : value(28)==3 ? "Mallet" : "HybridOriginal";return try JSONSerialization.data(withJSONObject:document,options:.sortedKeys) }
         return try JSONSerialization.data(withJSONObject:dna,options:.sortedKeys)
     }
     func editOffset(key: String, offset: Double) {
