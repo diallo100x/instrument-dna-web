@@ -118,7 +118,7 @@ final class InstrumentModel: ObservableObject {
     }
     func fitPhysicalModel() {
         guard !fittingPhysical else { return }
-        let original = unit.modelData, saved = values, kind = physicalFitKind
+        let original = unit.modelData, kind = physicalFitKind
         fittingPhysical = true; stopPreview(); status = "Fitting isolated reference notes…"
         DispatchQueue.global(qos:.userInitiated).async { [weak self] in
             do {
@@ -154,7 +154,7 @@ final class InstrumentModel: ObservableObject {
                 DispatchQueue.main.async {
                     guard let self=self else {return};self.fittingPhysical=false
                     guard self.unit.modelData==original else {self.status="Sources or edits changed during fitting. Fit again.";return}
-                    do{_ = try self.unit.loadModelData(result);for(id,value) in saved where id<29 && id != 28 {self.set(id,value)};self.set(28,4);self.refreshModel();self.status="Fitted \(count) notes · \(low) low-confidence fits. Source slices and Hybrid retained. \(message)"}catch{self.status="Physical fit: \(error.localizedDescription)"}
+                    do{let live=self.values;_ = try self.unit.loadModelData(result);for(id,value) in live where id<29 && id != 28 {self.set(id,value)};self.set(28,4);self.refreshModel();self.status="Fitted \(count) notes · \(low) low-confidence fits. Source slices and Hybrid retained. \(message)"}catch{self.status="Physical fit: \(error.localizedDescription)"}
                 }
             }catch{DispatchQueue.main.async{self?.fittingPhysical=false;self?.status="Physical fit: \(error.localizedDescription)"}}
         }

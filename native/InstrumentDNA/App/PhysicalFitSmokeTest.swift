@@ -19,11 +19,12 @@ enum PhysicalFitSmokeTest {
         exercise(model,kind:"modal") {exercise(model,kind:"waveguide") {fputs("INSTRUMENT_DNA_FITTING_TESTS_PASSED\n",stdout);fflush(stdout)}}
     }
     private static func exercise(_ model:InstrumentModel,kind:String,done:@escaping()->Void) {
-        model.physicalFitKind=kind;model.fitPhysicalModel()
+        model.physicalFitKind=kind;model.set(2,0.3);model.fitPhysicalModel();model.set(2,0.79)
         let deadline=Date().addingTimeInterval(15)
         func check() {
             if model.fittingPhysical {precondition(Date()<deadline,"Fitting timed out");DispatchQueue.main.asyncAfter(deadline:.now()+0.1){check()};return}
             precondition(model.value(28)==4,model.status)
+            precondition(abs(model.value(2)-0.79)<0.001,"Live macro edit was overwritten by fitting")
             let reflection=try! JSONSerialization.jsonObject(with:model.exportData(includeAudio:false)) as! [String:Any]
             let ext=reflection["extensions"] as! [String:Any],physical=ext["physicalModel"] as! [String:Any]
             precondition(physical["kind"] as? String==kind && physical["origin"] as? String=="analyzed")
