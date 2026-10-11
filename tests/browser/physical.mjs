@@ -46,7 +46,7 @@ await page.selectOption('#mode','HybridOriginal');const key=page.locator('[data-
 // Fit a real imported PCM recording, exercise both engines and preserve comparison audio.
 const count=sr*2,plucked=Buffer.alloc(44+count*2);wav.copy(plucked,0,0,44);plucked.writeUInt32LE(36+count*2,4);plucked.writeUInt32LE(count*2,40);
 for(let i=0;i<count;i++){const hz=440,tone=.72,base=-Math.log(1000)/2;let value=0;for(let h=1;h<=4;h++){const loss=hz*Math.log(tone/Math.sqrt(1+(1-tone)**2-2*(1-tone)*Math.cos(2*Math.PI*hz*h/sr)));value+=.35/h*Math.sin(2*Math.PI*hz*h*i/sr)*Math.exp((base+loss)*i/sr);}plucked.writeInt16LE(Math.round(Math.max(-1,Math.min(1,value))*32767),44+i*2);}
-await page.locator('#file').setInputFiles({name:'plucked-reference.wav',mimeType:'audio/wav',buffer:plucked});await page.waitForFunction(()=>document.querySelector('#cropEnd').value>1.5);await page.selectOption('#analysisProfile','plucked');await page.click('#analyze');
+await page.locator('#addSource').uncheck();await page.locator('#file').setInputFiles({name:'plucked-reference.wav',mimeType:'audio/wav',buffer:plucked});await page.waitForFunction(()=>document.querySelector('#cropEnd').value>1.5);await page.selectOption('#analysisProfile','plucked');await page.click('#analyze');
 for(const kind of ['modal','waveguide']){
  await page.selectOption('#fitKind',kind);await page.click('#fitPhysical');await page.waitForFunction(()=>!document.querySelector('#fitPhysical').disabled);
  assert.equal(await page.inputValue('#mode'),'Physical',await page.textContent('#status'));

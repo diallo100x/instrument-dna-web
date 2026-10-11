@@ -86,6 +86,8 @@ struct InstrumentView: View {
             Picker("Fit type",selection:$model.physicalFitKind){Text("Struck / modal body").tag("modal");Text("Plucked / string waveguide").tag("waveguide")}.pickerStyle(.menu)
             Button(model.fittingPhysical ? "Fitting…" : "Fit physical model from mapped notes"){model.fitPhysicalModel()}.disabled(model.fittingPhysical).buttonStyle(.borderedProminent)
             Text("Import and review clean decaying notes first. Fitting retains individual measured resonances and decay. Switch Engine on Instrument map between Physical and Hybrid Original to compare; source slices are retained. Wind excitation, body separation and dispersion are unsupported.").font(.caption)
+            let fits=((model.reflection["extensions"] as? [String:Any])?["physicalFits"] as? [String:Any])?["anchors"] as? [[String:Any]] ?? []
+            ForEach(Array(fits.enumerated()),id:\.offset){_,fit in Text("\(noteName(fit["midi"] as? Int ?? 60)) · confidence \(String(format:"%.2f",fit["confidence"] as? Double ?? 0)) · \(fit["recommendation"] as? String ?? "")").font(.caption)}
             ParameterSlider(model:model,id:29,title:"Exciter hardness")
             ParameterSlider(model:model,id:30,title:"Strike / pluck position")
             ParameterSlider(model:model,id:31,title:"Damping")
