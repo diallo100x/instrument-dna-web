@@ -1,6 +1,6 @@
 # Instrument DNA — touch instrument / AUv3
 
-An additive native iPhone/iPad app and embedded AUv3 music instrument. The existing web app remains unchanged. Pre-native baseline: `660dc2afa73c01faa8b8bfb5efffa27a6eb94f40`.
+An additive native iPhone/iPad app and embedded AUv3 music instrument. Existing web hybrid/sample and mallet playback remain available. Pre-native baseline: `660dc2afa73c01faa8b8bfb5efffa27a6eb94f40`.
 
 ## Build and install
 
@@ -23,6 +23,14 @@ xcodebuild -project InstrumentDNA.xcodeproj -scheme InstrumentDNA -destination '
 - Host parameter automation and full-state recall. Standalone background audio is enabled. Named JSON Reflection and playable comparison export/import. Existing web comparisons retain per-articulation source samples. Native source import uses AVAudioFile. Set the crop (maximum 15 seconds), profile, capture density and articulation on Reference before choosing a file. Automatic monophonic extraction maps stable pitches; disable it for manual root assignment.
 - Bottom-right branding: “a product of Diallo Beats Audio Lab”.
 
+## Physical factory instruments — native 0.2.0 / web 0.6.0
+
+Open **Instrument map → Factory instruments**, choose Warm Marimba, Wooden Kalimba, Glass Chime, Hand Drum, Plucked String or experimental Reed Pipe. Loading selects **Physical model** automatically; no source audio is required. On the web use the Factory instrument selector and Load factory.
+
+The **Physical model** page exposes hardness, strike/pluck position, damping and exciter noise. Main macros and XY controls remain available. Save Reflection retains the original authored design and separate edited controls without embedding WAV files. Importing new source audio starts an analyzed model rather than claiming these authored resonances were learned from it.
+
+These are original Diallo Beats Audio Lab designs built with modal excitation or a fractional-delay string loop. No RipplerX, Resonarium or Faust code/presets are bundled. The Reed Pipe is continuously excited odd modal resonances, not a nonlinear reed/mouthpiece simulation. See [physical modeling](../../docs/physical-modeling.md) for the schema, provenance and limitations.
+
 ## Native extraction and note review
 
 Reference offers Sustained, Plucked/string and Struck/mallet profiles with 1/3/6/12 anchors per octave. Analysis is limited to approximately 65–1800 Hz, selects one stable occurrence of each pitch and then spreads sparse anchors across octaves. It does not identify an instrument, separate chords, automatically identify trills, or retain every repeated occurrence. Choose the wanted passage before importing; speech can also have a stable pitch. Basic attack and harmonic estimates carry modest confidence; unsupported measurements are explicitly listed.
@@ -37,15 +45,17 @@ The extension advertises its custom editor and supports compact, expanded and ho
 
 The native engine shares the web model **format**, not its complete DSP implementation. Original/sample modes retain imported waveform slices; reconstructed mode uses a compact harmonic approximation. Native sample playback currently couples pitch and duration. The web granular stretch algorithm has not been ported. Native monophonic extraction uses periodicity-based pitch detection and basic harmonic measurements; it is a separate initial analyzer, not full web-analysis parity. Reflection-only presets contain no source audio and therefore use modeled synthesis. Missing articulation anchors fall back to sustain; they do not create measured new articulations.
 
-All 29 exposed native controls affect playback. Era is a separate adjustable bandwidth foundation, not a complete historical recording simulator. Resonance is a simple tonal macro, not modal synthesis. Global attack/decay/release DNA offsets affect playback; other expert offsets are preserved as metadata until their DSP exists. Unsupported measurements are explicitly marked. No external recognition framework or historical audio is bundled.
+There are 33 exposed native controls, with existing AU addresses 0–28 preserved and physical controls appended at 29–32. Era is a separate adjustable bandwidth foundation, not a complete historical recording simulator. The legacy Resonance macro is a tonal control; the new Physical engine adds independently decaying modal resonators. Global attack/decay/release DNA offsets affect playback; other expert offsets are preserved as metadata until their DSP exists. Unsupported measurements are explicitly marked. No external recognition framework or historical audio is bundled.
 
 Per-note bends are supported for local touch voices and MPE member channels. This first build does not implement MIDI 2.0 per-note messages, MPE pressure/timbre gestures, native analyzer training, full sample/noise slot routing or convolution. Mallet/fretboard/pad layouts currently address chromatic/model notes rather than implement separate percussion-kit mapping metadata.
 
 ## Verification status
 
-Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitizer: audible finite output, pitch checks, independent/global bend, multi-voice separation, legato return priority, MPE, sustain, articulation samples and concurrent model replacement. LeakSanitizer is disabled because this environment disallows its process inspection. Project/plist/scheme integrity checks pass. Existing web suite: 33/33 passed.
+Linux portable DSP tests pass with AddressSanitizer and UndefinedBehaviorSanitizer: audible finite output, pitch checks, independent/global bend, multi-voice separation, legato return priority, MPE, sustain, articulation samples and concurrent model replacement. LeakSanitizer is disabled because this environment disallows its process inspection. Project/plist/scheme integrity checks pass. Web suite: 40/40 passed, including physical synthesis, factory portability and malformed-control checks.
 
 .github/workflows/native-ios.yml also runs Apple AU integration tests for JSON/sample import, XY/Era and host state recall, and audible native rendering. These tests and the Apple simulator compile passed during implementation. The iPad simulator reached the playable interface with audio initialized; first-boot timing required a longer CI timeout.
+
+The physical update passed browser audio/console checks, all six Apple factory renders and iPad simulator startup; see [the verification report](../../docs/physical-update-report.md).
 
 Apple compilation is checked by `.github/workflows/native-ios.yml`; consult the latest Actions result. Real-device touch/audio latency, Bluetooth MIDI, AU host view resizing, parameter automation and session restoration require device/host acceptance testing before shipping. A simulator compile alone does not establish those behaviors.
 

@@ -12,4 +12,6 @@ Modal filters are driven by a shaped transient/noise exciter. Individual resonan
 
 The browser uses an AudioWorklet for live physical voices; it requires HTTPS/localhost and AudioWorklet support. Native C uses the same model format and equations. No perfect cross-platform numerical identity is promised. Presets and physical edits save as normal Reflections; their original design remains in physicalModel and edited controls are retained separately in physicalControls.
 
+Physical factory presets contain no measured articulation layers. Web Physical currently uses excitation/envelope controls and pitch glide rather than recorded-layer/generated-trill routing; native generated trills use its shared pitch path.
+
 Limitations: no automatic fitting of modal ratios/T60 to input audio, coupled bodies, independent formant/resonator/filter pitch tracking, live sample-driven resonators, true bowed/friction or nonlinear reed model, continuous MPE pressure/timbre, or vendor-specific preset import yet. A fixed authored model can be combined with future fitted measurements without changing the Reflection schema. Adding source audio to a physical preset must disable its physical extension before reverting to analyzed reconstruction, so authored physics is never mislabeled as learned from that audio.
