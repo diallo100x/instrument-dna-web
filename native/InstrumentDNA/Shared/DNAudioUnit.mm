@@ -73,15 +73,17 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
  NSDictionary*document=parsed;BOOL comparison=[document[@"format"] isEqual:@"instrument-dna-playable-comparison"];NSDictionary*reflection=comparison?document[@"reflection"]:document;
  if(![reflection isKindOfClass:NSDictionary.class]||![reflection[@"format"] isEqual:@"instrument-dna-reflection"]||![reflection[@"anchors"] isKindOfClass:NSArray.class]){if(error)*error=Failure(@"Choose an Instrument DNA Reflection or playable comparison");return NO;}
  DNABank*bank=dna_bank_create();if(!bank){if(error)*error=Failure(@"Cannot allocate model");return NO;}
- NSDictionary*physical=reflection[@"extensions"][@"physicalModel"];
+ NSDictionary*extensions=reflection[@"extensions"];if(extensions&&![extensions isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid model extensions");return NO;}
+ NSDictionary*physical=extensions[@"physicalModel"];
  if(physical){
   if(![physical isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical model object");return NO;}
   for(NSString*key in @[@"version",@"continuous",@"hardness",@"position",@"noise",@"decay"]){if(![physical[key] isKindOfClass:NSNumber.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Physical model fields must be numbers");return NO;}}
-  if([physical[@"continuous"] intValue]<0||[physical[@"continuous"] intValue]>1){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid continuous excitation flag");return NO;}
+  if([physical[@"version"] doubleValue]!=1||([physical[@"continuous"] doubleValue]!=0&&[physical[@"continuous"] doubleValue]!=1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid continuous excitation flag");return NO;}
   DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:-1;
   NSArray*modes=physical[@"modes"];m.count=[modes isKindOfClass:NSArray.class]?(int)modes.count:0;m.continuous=[physical[@"continuous"] boolValue];m.hardness=[physical[@"hardness"] floatValue];m.position=[physical[@"position"] floatValue];m.noise=[physical[@"noise"] floatValue];m.decay=[physical[@"decay"] floatValue];
   if(m.count<1||m.count>16){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical mode count");return NO;}
-  for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];}
+  for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}if(![mode[@"ratio"] isKindOfClass:NSNumber.class]||![mode[@"gain"] isKindOfClass:NSNumber.class]||![mode[@"t60"] isKindOfClass:NSNumber.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];}
+  NSDictionary*edits=extensions[@"physicalControls"];if(edits){if(![edits isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical controls");return NO;}for(NSString*key in @[@"hardness",@"position",@"damping",@"noise"]){id value=edits[key];if(value&&(![value isKindOfClass:NSNumber.class]||!std::isfinite([value doubleValue])||[value doubleValue]<0||[value doubleValue]>1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical control value");return NO;}}}
   if(!dna_bank_physical(bank,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Unsupported or invalid physical model");return NO;}
  }
  NSArray*layers=LayerNames();BOOL valid=YES;NSUInteger sampleBytes=0;

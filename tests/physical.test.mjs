@@ -35,3 +35,9 @@ test('physical models reject unsupported versions, excessive modes and invalid f
  const model=preset('marimba').extensions.physicalModel;
  for(const modified of [{...model,version:2},{...model,decay:Infinity},{...model,modes:[]},{...model,modes:Array(17).fill(model.modes[0])},{...model,modes:[{ratio:NaN,gain:1,t60:1}]}])assert.throws(()=>validatePhysicalModel(modified));
 });
+
+test('physical control edits reject malformed values on Reflection import',()=>{
+ for(const edits of [{damping:2},{hardness:'loud'},{noise:null},[]]){
+  const dna=preset('marimba');dna.extensions.physicalControls=edits;assert.throws(()=>importReflection(dna));
+ }
+});

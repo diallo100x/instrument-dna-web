@@ -24,5 +24,9 @@ int main(){@autoreleasepool {
  [unit touchNote:0 midi:60 velocity:1 down:YES];double audible=0;for(int block=0;block<32;block++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));audible+=x*x;}}assert(audible>.00001);
  [unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.83;NSDictionary*physicalState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.1;unit.fullState=physicalState;assert(fabs([unit.parameterTree parameterWithAddress:DNA_DAMPING].value-.83)<.001);
  }
+ NSData*baseJSON=[NSData dataWithContentsOfFile:@"presets/factory/marimba.json"];
+ for(int variant=0;variant<4;variant++){NSMutableDictionary*bad=[NSJSONSerialization JSONObjectWithData:baseJSON options:NSJSONReadingMutableContainers error:nil];NSMutableDictionary*ext=bad[@"extensions"];NSMutableDictionary*physical=ext[@"physicalModel"];
+ if(variant==0)physical[@"version"]=@1.2;if(variant==1)physical[@"continuous"]=@.5;if(variant==2)physical[@"modes"][0][@"ratio"]=[NSNull null];if(variant==3)ext[@"physicalControls"]=@{@"damping":@"wrong"};
+ NSData*invalid=[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil];NSError*rejected=nil;assert(![unit loadModelData:invalid error:&rejected]);assert(rejected);}
  [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
 }}
