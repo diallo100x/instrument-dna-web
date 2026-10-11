@@ -47,7 +47,7 @@ export function fitPhysicalNote(a,sr,midi,kind='modal'){
    if(!best||error<best.error)best={tone,base,error};
   }
   if(!best||-Math.log(1000)/best.base>15)throw Error('The measured decay cannot be represented reliably by this simple string loop. Use Modal or Hybrid.');
-  model.waveguideTone=best.tone;model.lossSampleRate=sr;model.decay=clamp(-Math.log(1000)/best.base,.05,15);lossError=Math.sqrt(best.error);
+  model.waveguideTone=Math.round(best.tone*1000)/1000;model.lossSampleRate=sr;model.decay=clamp(-Math.log(1000)/best.base,.05,15);lossError=Math.sqrt(best.error);
  }
  validatePhysicalModel(model);
  const confidence=Math.min(...measured.map(p=>p.confidence))*(kind==='waveguide'?1/(1+(lossError??0)):.9);

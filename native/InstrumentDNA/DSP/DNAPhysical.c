@@ -8,7 +8,7 @@ int dna_physical_valid(const DNAPhysicalModel*m){
  if(!m||m->version!=1||m->kind<0||m->kind>1||m->count<1||m->count>16||m->continuous<0||m->continuous>1)return 0;
  if(!isfinite(m->hardness)||m->hardness<0||m->hardness>1||!isfinite(m->position)||m->position<0||m->position>1||!isfinite(m->noise)||m->noise<0||m->noise>1||!isfinite(m->decay)||m->decay<.05||m->decay>15)return 0;
  if(m->loss_rate!=0&&(!isfinite(m->loss_rate)||m->loss_rate<8000||m->loss_rate>192000))return 0;
- if(m->waveguide_tone!=0&&(!isfinite(m->waveguide_tone)||m->waveguide_tone<.05||m->waveguide_tone>.98))return 0;
+ if(m->waveguide_tone!=0&&(!isfinite(m->waveguide_tone)||m->waveguide_tone<.05f||m->waveguide_tone>.98f))return 0;
  for(int i=0;i<m->count;i++)if(!isfinite(m->ratios[i])||m->ratios[i]<.25||m->ratios[i]>64||!isfinite(m->gains[i])||m->gains[i]<0||m->gains[i]>1||!isfinite(m->t60[i])||m->t60[i]<.02||m->t60[i]>15)return 0;
  return 1;
 }
