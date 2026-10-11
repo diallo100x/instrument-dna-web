@@ -38,5 +38,5 @@ export function loadComparison(data,makeBuffer){
     const clip=makeBuffer(channels.length,channels[0].length,entry.sampleRate);
     channels.forEach((samples,i)=>clip.copyToChannel(samples,i));destination.set(key,clip);
   }
-  return {dna,clips,layerClips,hybridMode:['HybridOriginal','HybridStretch','Mallet'].includes(data.hybridMode)?data.hybridMode:'HybridOriginal'};
+  return {dna,clips,layerClips,hybridMode:['HybridOriginal','HybridStretch','Mallet','Physical'].includes(data.hybridMode)?data.hybridMode:'HybridOriginal'};
 }

@@ -4,6 +4,7 @@
 NS_ASSUME_NONNULL_BEGIN
 @interface DNAudioUnit : AUAudioUnit
 @property(nonatomic,readonly) NSData *modelData;
++ (nullable NSDictionary*)fitPhysicalPCM:(NSData*)pcm sampleRate:(double)rate midi:(NSInteger)midi kind:(NSString*)kind error:(NSError**)error;
 - (void)touchNote:(NSInteger)slot midi:(NSInteger)midi velocity:(float)velocity down:(BOOL)down;
 - (void)touchBend:(NSInteger)slot semitones:(float)semitones;
 - (void)previewNote:(NSInteger)midi layer:(NSInteger)layer source:(BOOL)source down:(BOOL)down;

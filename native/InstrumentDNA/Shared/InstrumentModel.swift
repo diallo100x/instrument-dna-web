@@ -17,6 +17,8 @@ final class InstrumentModel: ObservableObject {
     @Published var name = "Instrument DNA"
     @Published var status = "Ready. Play the touch surface or import a model."
     @Published var reflection: [String: Any] = [:]
+    @Published var physicalFitKind = "modal"
+    @Published var fittingPhysical = false
     @Published var automaticExtraction = true
     @Published var analysisProfile = "sustained"
     @Published var captureDensity = 3
@@ -84,7 +86,10 @@ final class InstrumentModel: ObservableObject {
         } else {detections = [NativeAnalyzer.Detection(midi:rootMidi,start:0,end:Double(mono.count)/format.sampleRate,confidence:0,f0:440*pow(2,Double(rootMidi-69)/12),harmonics:[],attack:0.01)]}
         var document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         var dna = document["reflection"] as? [String: Any] ?? document
-        if (dna["extensions"] as? [String:Any])?["physicalModel"] != nil {document=[:];dna=[:];savedParameters[28]=0}
+        if var ext=dna["extensions"] as? [String:Any],ext["physicalModel"] != nil {
+            if ext["physicalFits"] != nil {ext.removeValue(forKey:"physicalModel");ext.removeValue(forKey:"physicalFits");ext.removeValue(forKey:"physicalControls");dna["extensions"]=ext}else{document=[:];dna=[:]}
+            savedParameters[28]=0
+        }
         if dna["format"] == nil {dna = ["format":"instrument-dna-reflection","version":"0.5.7","name":name,"anchors":[],"provenance":[],"sampleSlots":[],"global":[:],"registers":[],"performance":["layers":[:]]]}
         dna["name"] = name;dna["analyzerVersion"] = NativeAnalyzer.version;dna["capture"] = ["density":captureDensity,"analysisProfile":analysisProfile]
         let role = NoteMap.roles[Int(value(20))], sourceID = UUID().uuidString
@@ -110,6 +115,49 @@ final class InstrumentModel: ObservableObject {
         document=["format":"instrument-dna-playable-comparison","version":1,"hybridMode":"HybridOriginal","reflection":dna,"audio":audioBase,"audioLayers":audioLayers]
         _ = try unit.loadModelData(JSONSerialization.data(withJSONObject:document));for (id,value) in savedParameters {set(id,value)};refreshModel()
         status = "Added \(detections.count) \(automaticExtraction ? "detected" : "manual") anchors. Review Detected note slices before saving."
+    }
+    func fitPhysicalModel() {
+        guard !fittingPhysical else { return }
+        let original = unit.modelData, saved = values, kind = physicalFitKind
+        fittingPhysical = true; stopPreview(); status = "Fitting isolated reference notes…"
+        DispatchQueue.global(qos:.userInitiated).async { [weak self] in
+            do {
+                var document = try JSONSerialization.jsonObject(with:original) as! [String:Any]
+                var dna = document["reflection"] as? [String:Any] ?? document
+                let audio = document["audio"] as? [[String:Any]] ?? []
+                let anchors = dna["anchors"] as? [[String:Any]] ?? []
+                var fits:[[String:Any]] = [], failures:[String] = []
+                for anchor in anchors {
+                    guard let midi=anchor["midi"] as? Int, let clip=audio.first(where:{($0["midi"] as? Int)==midi}),let rate=clip["sampleRate"] as? Double,let channels=clip["channels"] as? [String],!channels.isEmpty else {continue}
+                    do {
+                        let decoded=try channels.map { encoded -> [Float] in
+                            guard let data=Data(base64Encoded:encoded),data.count%4==0 else {throw ModelError("Invalid source audio.")}
+                            var samples=[Float](repeating:0,count:data.count/4)
+                            _ = samples.withUnsafeMutableBytes{data.copyBytes(to:$0)};return samples
+                        }
+                        guard let first=decoded.first,decoded.allSatisfy({$0.count==first.count}) else {throw ModelError("Mismatched source channels.")}
+                        var mono=[Float](repeating:0,count:first.count)
+                        for channel in decoded {for i in mono.indices {mono[i]+=channel[i]/Float(decoded.count)}}
+                        let pcm=mono.withUnsafeBytes{Data($0)}
+                        guard var fit=try DNAudioUnit.fitPhysicalPCM(pcm,sampleRate:rate,midi:midi,kind:kind) as? [String:Any] else {throw ModelError("No fit returned.")}
+                        fit["sourceId"]=anchor["sourceId"];fit["articulation"]=anchor["articulation"];fits.append(fit)
+                    }catch{failures.append("\(noteName(midi)): \(error.localizedDescription)")}
+                }
+                guard let first=fits.first else {throw ModelError(failures.isEmpty ? "Import clean struck/plucked notes with source slices before fitting." : failures.joined(separator:" "))}
+                var ext=dna["extensions"] as? [String:Any] ?? [:]
+                ext["physicalModel"]=first["model"];ext.removeValue(forKey:"physicalControls")
+                ext["physicalFits"]=["version":1,"analyzerVersion":"physical-fit-1","kind":kind,"anchors":fits,"failures":failures,"selection":"nearest measured anchor; no physical curve interpolation yet"]
+                var native=ext["nativePerformance"] as? [String:Any] ?? [:];native["engineMode"]=4;ext["nativePerformance"]=native;dna["extensions"]=ext
+                if document["reflection"] != nil {document["reflection"]=dna;document["hybridMode"]="Physical"}else{document=dna}
+                let result=try JSONSerialization.data(withJSONObject:document)
+                let count=fits.count, low=fits.filter{($0["confidence"] as? Double ?? 0)<0.55}.count, message=failures.joined(separator:" ")
+                DispatchQueue.main.async {
+                    guard let self=self else {return};self.fittingPhysical=false
+                    guard self.unit.modelData==original else {self.status="Sources or edits changed during fitting. Fit again.";return}
+                    do{_ = try self.unit.loadModelData(result);for(id,value) in saved where id<29 && id != 28 {self.set(id,value)};self.set(28,4);self.refreshModel();self.status="Fitted \(count) notes · \(low) low-confidence fits. Source slices and Hybrid retained. \(message)"}catch{self.status="Physical fit: \(error.localizedDescription)"}
+                }
+            }catch{DispatchQueue.main.async{self?.fittingPhysical=false;self?.status="Physical fit: \(error.localizedDescription)"}}
+        }
     }
     var noteEntries: [NoteMap.Entry] {
         let document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]

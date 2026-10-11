@@ -1,5 +1,6 @@
 #import "DNAudioUnit.h"
 #import "DNAKernel.h"
+#import "DNAPhysicalFit.h"
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -8,9 +9,30 @@ static NSString*const StateKey=@"InstrumentDNAModel";
 static NSArray<NSString*>*LayerNames(){return @[@"sustain",@"trill",@"staccato",@"accent",@"breathy",@"alternate"];}
 static float Field(NSDictionary *params,NSString *key,float fallback){id p=params[key];if(![p isKindOfClass:NSDictionary.class])return fallback;id n=p[@"model"]?:p[@"analyzed"];return [n isKindOfClass:NSNumber.class]?[n floatValue]+[p[@"offset"] floatValue]:fallback;}
 static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"InstrumentDNA" code:1 userInfo:@{NSLocalizedDescriptionKey:message}];}
+static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
+  if(![physical isKindOfClass:NSDictionary.class]){return NO;}
+  for(NSString*key in @[@"version",@"continuous",@"hardness",@"position",@"noise",@"decay"]){if(![physical[key] isKindOfClass:NSNumber.class]){return NO;}}
+  if([physical[@"version"] doubleValue]!=1||([physical[@"continuous"] doubleValue]!=0&&[physical[@"continuous"] doubleValue]!=1)){return NO;}
+  DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.measured=[physical[@"origin"] isEqual:@"analyzed"];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:-1;
+  NSArray*modes=physical[@"modes"];m.count=[modes isKindOfClass:NSArray.class]?(int)modes.count:0;m.continuous=[physical[@"continuous"] boolValue];m.hardness=[physical[@"hardness"] floatValue];m.position=[physical[@"position"] floatValue];m.noise=[physical[@"noise"] floatValue];m.decay=[physical[@"decay"] floatValue];
+  if(m.count<1||m.count>16){return NO;}
+  for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}if(![mode[@"ratio"] isKindOfClass:NSNumber.class]||![mode[@"gain"] isKindOfClass:NSNumber.class]||![mode[@"t60"] isKindOfClass:NSNumber.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];}
+  if(physical[@"waveguideTone"]){if(![physical[@"waveguideTone"] isKindOfClass:NSNumber.class])return NO;m.waveguide_tone=[physical[@"waveguideTone"] floatValue];if(m.waveguide_tone==0)return NO;}
+  if(physical[@"lossSampleRate"]){if(![physical[@"lossSampleRate"] isKindOfClass:NSNumber.class])return NO;m.loss_rate=[physical[@"lossSampleRate"] floatValue];if(m.loss_rate==0)return NO;}
+  if(!dna_physical_valid(&m))return NO;*output=m;return YES;
+}
 @implementation DNAudioUnit {
  DNAKernel *_kernel; AUAudioUnitBus *_output; AUAudioUnitBusArray *_outputs,*_inputs; AUParameterTree *_tree;
  std::vector<float> _left,_right; NSData *_modelData; NSLock *_stateLock;
+}
++ (NSDictionary*)fitPhysicalPCM:(NSData*)pcm sampleRate:(double)rate midi:(NSInteger)midi kind:(NSString*)kind error:(NSError**)error {
+ if(pcm.length%sizeof(float)||pcm.length>rate*15*sizeof(float)||(![kind isEqual:@"modal"]&&![kind isEqual:@"waveguide"])){if(error)*error=Failure(@"Invalid physical fitting input");return nil;}
+ std::vector<float> samples(pcm.length/sizeof(float));memcpy(samples.data(),pcm.bytes,pcm.length);DNAPhysicalFit fit={0};
+ if(!dna_physical_fit(samples.data(),(int)samples.size(),rate,(int)midi,[kind isEqual:@"waveguide"]?1:0,&fit)){if(error)*error=Failure(@"No reliable physical fit. Use an isolated decaying note of at least 0.35 seconds; strings need two harmonic partials. Try Modal or Hybrid.");return nil;}
+ DNAPhysicalModel*m=&fit.model;NSMutableArray*modes=[NSMutableArray new],*measurements=[NSMutableArray new];
+ for(int i=0;i<m->count;i++){[modes addObject:@{@"ratio":@(m->ratios[i]),@"gain":@(m->gains[i]),@"t60":@(m->t60[i])}];[measurements addObject:@{@"hz":@(fit.frequencies[i]),@"r2":@(fit.r2[i]),@"observedSeconds":@(fit.observed[i]),@"t60":@(m->t60[i])}];}
+ NSMutableDictionary*model=[@{@"version":@1,@"kind":kind,@"origin":@"analyzed",@"referenceMidi":@(midi),@"continuous":@NO,@"hardness":@(m->hardness),@"position":@(m->position),@"noise":@(m->noise),@"decay":@(m->decay),@"modes":modes} mutableCopy];if(m->waveguide_tone>0){model[@"waveguideTone"]=@(m->waveguide_tone);model[@"lossSampleRate"]=@(m->loss_rate);}
+ return @{@"midi":@(midi),@"model":model,@"confidence":@(fit.confidence),@"lossError":@(fit.loss_error),@"analyzerVersion":@"physical-fit-1",@"measurements":measurements,@"unsupported":@[@"excitation residual",@"body/string separation",@"dispersion",@"nonlinear response",@"velocity learning",@"wind excitation"],@"recommendation":fit.confidence<.55?@"Additional clean reference recommended near this note.":@""};
 }
 - (instancetype)initWithComponentDescription:(AudioComponentDescription)description options:(AudioComponentInstantiationOptions)options error:(NSError**)error {
  if(!(self=[super initWithComponentDescription:description options:options error:error]))return nil;
@@ -76,15 +98,17 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
  NSDictionary*extensions=reflection[@"extensions"];if(extensions&&![extensions isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid model extensions");return NO;}
  NSDictionary*physical=extensions[@"physicalModel"];
  if(physical){
-  if(![physical isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical model object");return NO;}
-  for(NSString*key in @[@"version",@"continuous",@"hardness",@"position",@"noise",@"decay"]){if(![physical[key] isKindOfClass:NSNumber.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Physical model fields must be numbers");return NO;}}
-  if([physical[@"version"] doubleValue]!=1||([physical[@"continuous"] doubleValue]!=0&&[physical[@"continuous"] doubleValue]!=1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid continuous excitation flag");return NO;}
-  DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:-1;
-  NSArray*modes=physical[@"modes"];m.count=[modes isKindOfClass:NSArray.class]?(int)modes.count:0;m.continuous=[physical[@"continuous"] boolValue];m.hardness=[physical[@"hardness"] floatValue];m.position=[physical[@"position"] floatValue];m.noise=[physical[@"noise"] floatValue];m.decay=[physical[@"decay"] floatValue];
-  if(m.count<1||m.count>16){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical mode count");return NO;}
-  for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}if(![mode[@"ratio"] isKindOfClass:NSNumber.class]||![mode[@"gain"] isKindOfClass:NSNumber.class]||![mode[@"t60"] isKindOfClass:NSNumber.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];}
+  DNAPhysicalModel m={0};if(!ReadPhysical(physical,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical model");return NO;}
   NSDictionary*edits=extensions[@"physicalControls"];if(edits){if(![edits isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical controls");return NO;}for(NSString*key in @[@"hardness",@"position",@"damping",@"noise"]){id value=edits[key];if(value&&(![value isKindOfClass:NSNumber.class]||!std::isfinite([value doubleValue])||[value doubleValue]<0||[value doubleValue]>1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical control value");return NO;}}}
   if(!dna_bank_physical(bank,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Unsupported or invalid physical model");return NO;}
+ }
+ NSDictionary*fits=extensions[@"physicalFits"];
+ if(fits){
+  NSArray*items=[fits isKindOfClass:NSDictionary.class]?fits[@"anchors"]:nil;
+  if(![fits isKindOfClass:NSDictionary.class]||![fits[@"version"] isKindOfClass:NSNumber.class]||[fits[@"version"] intValue]!=1||![items isKindOfClass:NSArray.class]||items.count>128){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical fits");return NO;}
+  NSMutableSet*seen=[NSMutableSet new];for(NSDictionary*f in items){DNAPhysicalModel m={0};id midi=[f isKindOfClass:NSDictionary.class]?f[@"midi"]:nil;id confidence=[f isKindOfClass:NSDictionary.class]?f[@"confidence"]:nil;
+   if(![midi isKindOfClass:NSNumber.class]||[midi doubleValue]!=[midi intValue]||[seen containsObject:midi]||![confidence isKindOfClass:NSNumber.class]||!std::isfinite([confidence doubleValue])||[confidence doubleValue]<0||[confidence doubleValue]>1||!ReadPhysical(f[@"model"],&m)||!dna_bank_physical_anchor(bank,[midi intValue],&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical fit anchor");return NO;}[seen addObject:midi];
+  }
  }
  NSArray*layers=LayerNames();BOOL valid=YES;NSUInteger sampleBytes=0;
  for(int layer=0;layer<DNA_LAYERS;layer++){NSArray*anchors=layer==0?reflection[@"anchors"]:reflection[@"performance"][@"layers"][layers[layer]];if(![anchors isKindOfClass:NSArray.class])continue;if(anchors.count>128){valid=NO;break;}

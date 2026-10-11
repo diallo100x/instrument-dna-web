@@ -24,6 +24,7 @@ void dna_render(DNAKernel *kernel,float *left,float *right,uint32_t frames);
 DNABank *dna_bank_create(void);
 void dna_bank_destroy(DNABank *bank);
 int dna_bank_anchor(DNABank *bank,int layer,int midi,float attack,float decay,float release,const float *harmonics,int count,int struck);
+int dna_bank_physical_anchor(DNABank*b,int midi,const DNAPhysicalModel*m);
 int dna_bank_physical(DNABank *bank,const DNAPhysicalModel *model);
 int dna_bank_sample(DNABank *bank,int layer,int midi,const float *mono,uint32_t length,double sample_rate);
 // Transfers ownership. Immutable banks are published outside the render thread.
