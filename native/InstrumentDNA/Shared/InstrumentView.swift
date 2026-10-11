@@ -108,7 +108,7 @@ struct InstrumentView: View {
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.2.0 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.2.1 · iOS/iPadOS 15.4+").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}

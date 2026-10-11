@@ -35,7 +35,7 @@ static NSError*Failure(NSString*message){return [NSError errorWithDomain:@"Instr
 - (BOOL)providesUserInterface{return YES;}
 - (NSIndexSet*)supportedViewConfigurations:(NSArray<AUAudioUnitViewConfiguration*>*)configurations {
  NSMutableIndexSet*accepted=[NSMutableIndexSet indexSet];
- [configurations enumerateObjectsUsingBlock:^(AUAudioUnitViewConfiguration*c,NSUInteger index,BOOL*stop){if((c.width>0&&c.height>0)||(c.width==0&&c.height==0))[accepted addIndex:index];}];return accepted;
+ [configurations enumerateObjectsUsingBlock:^(AUAudioUnitViewConfiguration*c,NSUInteger index,BOOL*stop){if(c.width>=0&&c.height>=0&&std::isfinite(c.width)&&std::isfinite(c.height))[accepted addIndex:index];}];return accepted;
 }
 - (BOOL)canProcessInPlace{return NO;}
 - (BOOL)supportsMPE{return YES;}

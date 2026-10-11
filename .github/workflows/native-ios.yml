@@ -37,11 +37,12 @@ jobs:
           codesign --force --sign - "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app/PlugIns/InstrumentDNAInstrument.appex"
           codesign --force --sign - "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
           xcrun simctl install "$DEVICE" "$RUNNER_TEMP/InstrumentDNA/Build/Products/Debug-iphonesimulator/InstrumentDNA.app"
-          xcrun simctl launch --stdout="$RUNNER_TEMP/native-app.log" --stderr="$RUNNER_TEMP/native-app-errors.log" "$DEVICE" org.diallobeats.instrumentdna
+          xcrun simctl launch --stdout="$RUNNER_TEMP/native-app.log" --stderr="$RUNNER_TEMP/native-app-errors.log" "$DEVICE" org.diallobeats.instrumentdna --editor-smoke-test
           sleep 10
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
           xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
           grep -q INSTRUMENT_DNA_READY "$RUNNER_TEMP/native-app.log"
+          grep -q INSTRUMENT_DNA_EDITOR_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
       - name: Collect simulator crash diagnostics
         if: always()
         timeout-minutes: 2

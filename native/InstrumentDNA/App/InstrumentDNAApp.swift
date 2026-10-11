@@ -11,6 +11,9 @@ final class StandaloneHost:ObservableObject {
     private var node:AVAudioUnit?
     private var midi:DNAMIDIInput?
     init(){
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--editor-smoke-test") {DispatchQueue.main.async {EditorSmokeTest.run()}}
+        #endif
         AUAudioUnit.registerSubclass(DNAudioUnit.self,as:component,name:"Diallo Beats Audio Lab: Instrument DNA",version:0x00010000)
         AVAudioUnit.instantiate(with:component,options:[]){[weak self] unit,error in
             DispatchQueue.main.async {guard let self=self else{return};guard let unit=unit,let dna=unit.auAudioUnit as? DNAudioUnit else{self.status=error?.localizedDescription ?? "Cannot create Instrument DNA";return};do{
