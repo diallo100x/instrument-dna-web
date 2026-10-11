@@ -16,10 +16,10 @@ def quote(value):
     return str(value)
 ref=lambda key:Raw(key)
 shared=sorted([*root.glob('DSP/*.[ch]'),*root.glob('Shared/*.swift'),*root.glob('Shared/*.h'),*root.glob('Shared/*.m'),*root.glob('Shared/*.mm')])
-app=list(root.glob('App/*.swift'));extension=list(root.glob('Extension/*.swift'))
+app=list(root.glob('App/*.swift'));extension=list(root.glob('Extension/*.swift'));assets=sorted(root.glob('Resources/*.json'))
 files={}
-for path in shared+app+extension+[root/'App/Info.plist',root/'Extension/Info.plist']:
-    rel=path.relative_to(root).as_posix();types={'.swift':'sourcecode.swift','.c':'sourcecode.c.c','.h':'sourcecode.c.h','.m':'sourcecode.c.objc','.mm':'sourcecode.cpp.objcpp','.plist':'text.plist.xml'}
+for path in shared+app+extension+assets+[root/'App/Info.plist',root/'Extension/Info.plist']:
+    rel=path.relative_to(root).as_posix();types={'.swift':'sourcecode.swift','.c':'sourcecode.c.c','.h':'sourcecode.c.h','.m':'sourcecode.c.objc','.mm':'sourcecode.cpp.objcpp','.plist':'text.plist.xml','.json':'text.json'}
     files[rel]=add('file:'+rel,'PBXFileReference',lastKnownFileType=types[path.suffix],path=rel,sourceTree='<group>')
 frameworks=[]
 for name in ['AVFoundation','AudioToolbox','CoreAudioKit','CoreMIDI','UIKit','SwiftUI','UniformTypeIdentifiers']:
@@ -34,7 +34,7 @@ def configurations(label,settings):
         values={**settings,'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if name=='Debug' else '-O','GCC_OPTIMIZATION_LEVEL':'0' if name=='Debug' else 's','ONLY_ACTIVE_ARCH':'YES' if name=='Debug' else 'NO'}
         configs.append(add(label+':'+name,'XCBuildConfiguration',buildSettings=values,name=name))
     return add(label+':configs','XCConfigurationList',buildConfigurations=[ref(c) for c in configs],defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
-projectSettings={'IPHONEOS_DEPLOYMENT_TARGET':'15.4','SWIFT_VERSION':'5.0','CLANG_CXX_LANGUAGE_STANDARD':'c++17','GCC_C_LANGUAGE_STANDARD':'c11','CLANG_ENABLE_MODULES':'YES','CLANG_ENABLE_OBJC_ARC':'YES','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','TARGETED_DEVICE_FAMILY':'1,2','ENABLE_BITCODE':'NO','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'','SWIFT_OBJC_BRIDGING_HEADER':'$(SRCROOT)/Shared/BridgingHeader.h','HEADER_SEARCH_PATHS':['$(inherited)','$(SRCROOT)/DSP','$(SRCROOT)/Shared'],'CURRENT_PROJECT_VERSION':'1','MARKETING_VERSION':'0.1.0','SUPPORTS_MACCATALYST':'NO'}
+projectSettings={'IPHONEOS_DEPLOYMENT_TARGET':'15.4','SWIFT_VERSION':'5.0','CLANG_CXX_LANGUAGE_STANDARD':'c++17','GCC_C_LANGUAGE_STANDARD':'c11','CLANG_ENABLE_MODULES':'YES','CLANG_ENABLE_OBJC_ARC':'YES','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','TARGETED_DEVICE_FAMILY':'1,2','ENABLE_BITCODE':'NO','CODE_SIGN_STYLE':'Automatic','DEVELOPMENT_TEAM':'','SWIFT_OBJC_BRIDGING_HEADER':'$(SRCROOT)/Shared/BridgingHeader.h','HEADER_SEARCH_PATHS':['$(inherited)','$(SRCROOT)/DSP','$(SRCROOT)/Shared'],'CURRENT_PROJECT_VERSION':'2','MARKETING_VERSION':'0.2.0','SUPPORTS_MACCATALYST':'NO'}
 projectConfig=configurations('project',projectSettings)
 projectID=ident('project');appID=ident('app-target');extID=ident('extension-target')
 proxy=add('dependency-proxy','PBXContainerItemProxy',containerPortal=ref(projectID),proxyType=1,remoteGlobalIDString=ref(extID),remoteInfo='InstrumentDNAInstrument')
@@ -49,7 +49,8 @@ for label,specific,product,bundle,plist in [('app',app,appProduct,'org.diallobea
     sourcePhase=add(label+':sources','PBXSourcesBuildPhase',buildActionMask=2147483647,files=[ref(f) for f in sources],runOnlyForDeploymentPostprocessing=0)
     linked=[add(label+':link:'+f,'PBXBuildFile',fileRef=ref(f)) for f in frameworks]
     frameworkPhase=add(label+':frameworks','PBXFrameworksBuildPhase',buildActionMask=2147483647,files=[ref(f) for f in linked],runOnlyForDeploymentPostprocessing=0)
-    resources=add(label+':resources','PBXResourcesBuildPhase',buildActionMask=2147483647,files=[],runOnlyForDeploymentPostprocessing=0)
+    resourceFiles=[add(label+':resource:'+str(path),'PBXBuildFile',fileRef=ref(files[path.relative_to(root).as_posix()])) for path in assets]
+    resources=add(label+':resources','PBXResourcesBuildPhase',buildActionMask=2147483647,files=[ref(f) for f in resourceFiles],runOnlyForDeploymentPostprocessing=0)
     targetSettings={'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':bundle,'INFOPLIST_FILE':plist,'GENERATE_INFOPLIST_FILE':'NO','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks','@executable_path/../../Frameworks']}
     if label=='extension':targetSettings.update(APPLICATION_EXTENSION_API_ONLY='YES',SKIP_INSTALL='YES')
     config=configurations(label,targetSettings)

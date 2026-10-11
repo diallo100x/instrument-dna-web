@@ -1,0 +1,32 @@
+[
+  {
+    "id": "marimba",
+    "name": "DBAL · Warm Marimba",
+    "path": "presets/factory/marimba.json"
+  },
+  {
+    "id": "kalimba",
+    "name": "DBAL · Wooden Kalimba",
+    "path": "presets/factory/kalimba.json"
+  },
+  {
+    "id": "chime",
+    "name": "DBAL · Glass Chime",
+    "path": "presets/factory/chime.json"
+  },
+  {
+    "id": "djembe",
+    "name": "DBAL · Hand Drum",
+    "path": "presets/factory/djembe.json"
+  },
+  {
+    "id": "nylon-string",
+    "name": "DBAL · Plucked String",
+    "path": "presets/factory/nylon-string.json"
+  },
+  {
+    "id": "reed-pipe",
+    "name": "DBAL · Reed Pipe (experimental)",
+    "path": "presets/factory/reed-pipe.json"
+  }
+]
