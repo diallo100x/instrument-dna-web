@@ -80,3 +80,10 @@ Import and review clean decaying notes, then open **Physical model** and select
 Struck/modal or Plucked/string. Fitting runs off the render/UI thread and preserves
 source slices for **Hybrid Original** comparison on Instrument map. Reflections
 save fitted parameters without audio. See [fitting details and limitations](https://github.com/diallo100x/instrument-dna-web/blob/main/docs/physical-fitting.md).
+
+## v0.3.1 · host compatibility build
+
+See [0.3.1 host compatibility and Koala retest](KOALA_HOST_031.md). The build adds
+host audio-format/block negotiation, a component-version refresh and a real
+out-of-process AUv3 editor/MIDI/audio acceptance test. Existing model formats and
+parameter addresses stay stable. Actual Koala acceptance remains a device test.
