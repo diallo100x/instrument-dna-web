@@ -47,6 +47,7 @@ class InstrumentEditorController: AUViewController, AUAudioUnitFactory {
         super.viewWillDisappear(animated)
     }
     func createAudioUnit(with description: AudioComponentDescription) throws -> AUAudioUnit {
+        NSLog("InstrumentDNA extension factory invoked · main=%@", Thread.isMainThread ? "yes" : "no")
         let created = try DNAudioUnit(componentDescription: description, options: [])
         // Hosts may invoke the factory off the main queue. Never construct SwiftUI
         // or mutate UIKit/controller state from that callback thread.
@@ -84,6 +85,7 @@ class InstrumentEditorController: AUViewController, AUAudioUnitFactory {
         controller.didMove(toParent: self)
         hosting = controller
         startup.isHidden = true
+        NSLog("InstrumentDNA extension editor installed · bounds=%@", NSStringFromCGRect(view.bounds))
         view.setNeedsLayout()
     }
 }

@@ -38,5 +38,26 @@ int main(){@autoreleasepool {
  for(int variant=0;variant<4;variant++){NSMutableDictionary*bad=[NSJSONSerialization JSONObjectWithData:baseJSON options:NSJSONReadingMutableContainers error:nil];NSMutableDictionary*ext=bad[@"extensions"];NSMutableDictionary*physical=ext[@"physicalModel"];
  if(variant==0)physical[@"version"]=@1.2;if(variant==1)physical[@"continuous"]=@.5;if(variant==2)physical[@"modes"][0][@"ratio"]=[NSNull null];if(variant==3)ext[@"physicalControls"]=@{@"damping":@"wrong"};
  NSData*invalid=[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil];NSError*rejected=nil;assert(![unit loadModelData:invalid error:&rejected]);assert(rejected);}
- [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: PCM modal/string fitting and Hybrid comparison, model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
+ // Host formats/block sizes omitted by the former local-only acceptance tests.
+ for(int channels=1;channels<=2;channels++)for(BOOL interleaved : {NO,YES}) {
+  NSError*hostError=nil;DNAudioUnit*hostUnit=[[DNAudioUnit alloc]initWithComponentDescription:component options:0 error:&hostError];assert(hostUnit&&!hostError);
+  assert(([hostUnit.channelCapabilities isEqual:@[@0,@1,@0,@2]]));
+  auto hostRender=hostUnit.internalRenderBlock; // Obtained before host negotiation.
+  AVAudioFormat*format=[[AVAudioFormat alloc]initWithCommonFormat:AVAudioPCMFormatFloat32 sampleRate:48000 channels:channels interleaved:interleaved];
+  assert([hostUnit.outputBusses[0] setFormat:format error:&hostError]);hostUnit.maximumFramesToRender=8192;assert([hostUnit allocateRenderResourcesAndReturnError:&hostError]);assert(!hostError);
+  [hostUnit touchNote:0 midi:69 velocity:1 down:YES];
+  BOOL packed=interleaved&&channels==2;
+  std::vector<float> first(8192*(packed?2:1)+1,123),second(8193,123);UInt32 buffers=packed?1:channels;
+  struct {UInt32 count;AudioBuffer buffers[2];} hostOutput={buffers,{{(UInt32)(packed?2:1),(UInt32)(8192*sizeof(float)*(packed?2:1)),first.data()},{1,8192*sizeof(float),second.data()}}};
+  assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);
+  double power=0;for(int i=0;i<8192*(packed?2:1);i++){assert(std::isfinite(first[i]));power+=first[i]*first[i];}assert(power>1e-5);assert(first[8192*(packed?2:1)]==123);assert(second[8192]==123);
+  for(UInt32 i=0;i<buffers;i++){hostOutput.buffers[i].mData=NULL;hostOutput.buffers[i].mDataByteSize=0;}
+  assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);
+  for(UInt32 i=0;i<buffers;i++)assert(hostOutput.buffers[i].mData&&hostOutput.buffers[i].mDataByteSize==8192*sizeof(float)*(packed?2:1));
+  assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr); // Reuse AU-owned storage.
+  float sentinel=123;hostOutput.buffers[0].mData=&sentinel;hostOutput.buffers[0].mDataByteSize=sizeof(float);
+  assert(hostRender(&flags,&time,512,0,(AudioBufferList*)&hostOutput,NULL,nil)!=noErr);assert(sentinel==123);
+  [hostUnit deallocateRenderResources];
+ }
+ [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
 }}

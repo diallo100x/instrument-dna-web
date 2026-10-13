@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+static const AUAudioFrameCount HostFrameCapacity=65536;
 static NSString*const StateKey=@"InstrumentDNAModel";
 static NSArray<NSString*>*LayerNames(){return @[@"sustain",@"trill",@"staccato",@"accent",@"breathy",@"alternate"];}
 static float Field(NSDictionary *params,NSString *key,float fallback){id p=params[key];if(![p isKindOfClass:NSDictionary.class])return fallback;id n=p[@"model"]?:p[@"analyzed"];return [n isKindOfClass:NSNumber.class]?[n floatValue]+[p[@"offset"] floatValue]:fallback;}
@@ -23,7 +24,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
 }
 @implementation DNAudioUnit {
  DNAKernel *_kernel; AUAudioUnitBus *_output; AUAudioUnitBusArray *_outputs,*_inputs; AUParameterTree *_tree;
- std::vector<float> _left,_right; NSData *_modelData; NSLock *_stateLock;
+ std::vector<float> _left,_right,_interleaved; NSData *_modelData; NSLock *_stateLock;
 }
 + (NSDictionary*)fitPhysicalPCM:(NSData*)pcm sampleRate:(double)rate midi:(NSInteger)midi kind:(NSString*)kind error:(NSError**)error {
  if(pcm.length%sizeof(float)||pcm.length>rate*15*sizeof(float)||(![kind isEqual:@"modal"]&&![kind isEqual:@"waveguide"])){if(error)*error=Failure(@"Invalid physical fitting input");return nil;}
@@ -37,7 +38,8 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
 - (instancetype)initWithComponentDescription:(AudioComponentDescription)description options:(AudioComponentInstantiationOptions)options error:(NSError**)error {
  if(!(self=[super initWithComponentDescription:description options:options error:error]))return nil;
  _kernel=dna_kernel_create(44100);if(!_kernel){if(error)*error=Failure(@"Cannot allocate instrument kernel");return nil;}
- _stateLock=[NSLock new];_modelData=[NSData data];self.maximumFramesToRender=4096;_left.resize(4096);_right.resize(4096);
+ _stateLock=[NSLock new];_modelData=[NSData data];self.maximumFramesToRender=4096;_left.resize(HostFrameCapacity);_right.resize(HostFrameCapacity);_interleaved.resize(HostFrameCapacity*2);
+ NSLog(@"InstrumentDNA AU initialized: type=%u subtype=%u",description.componentType,description.componentSubType);
  _output=[[AUAudioUnitBus alloc] initWithFormat:[[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:2] error:error];if(!_output)return nil;
  _outputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeOutput busses:@[_output]];
  _inputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeInput busses:@[]];
@@ -59,19 +61,27 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  NSMutableIndexSet*accepted=[NSMutableIndexSet indexSet];
  [configurations enumerateObjectsUsingBlock:^(AUAudioUnitViewConfiguration*c,NSUInteger index,BOOL*stop){if(c.width>=0&&c.height>=0&&std::isfinite(c.width)&&std::isfinite(c.height))[accepted addIndex:index];}];return accepted;
 }
+- (NSArray<NSNumber*>*)channelCapabilities{return @[@0,@1,@0,@2];}
 - (BOOL)canProcessInPlace{return NO;}
 - (BOOL)supportsMPE{return YES;}
 - (BOOL)supportsUserPresets{return YES;}
 - (BOOL)allocateRenderResourcesAndReturnError:(NSError**)error {
- if(_output.format.channelCount<1||_output.format.channelCount>2||_output.format.commonFormat!=AVAudioPCMFormatFloat32||_output.format.interleaved){if(error)*error=Failure(@"Choose a mono or stereo noninterleaved Float32 output");return NO;}
- if(self.maximumFramesToRender>4096){if(error)*error=Failure(@"Maximum render block is 4096 frames");return NO;}if(![super allocateRenderResourcesAndReturnError:error])return NO;
+ if(_output.format.channelCount<1||_output.format.channelCount>2||_output.format.commonFormat!=AVAudioPCMFormatFloat32){if(error)*error=Failure(@"Choose a mono or stereo Float32 output");return NO;}
+ if(!std::isfinite(_output.format.sampleRate)||_output.format.sampleRate<8000||_output.format.sampleRate>192000){if(error)*error=Failure(@"Output sample rate must be 8–192 kHz");return NO;}
+ if(self.maximumFramesToRender<1||self.maximumFramesToRender>HostFrameCapacity){if(error)*error=Failure(@"Maximum render block must be 1–65536 frames");return NO;}
+ NSLog(@"InstrumentDNA host allocation: %@, maximumFrames=%u",_output.format,self.maximumFramesToRender);if(![super allocateRenderResourcesAndReturnError:error])return NO;
  dna_kernel_set_rate(_kernel,_output.format.sampleRate);return YES;
 }
 - (void)deallocateRenderResources {[self panic];[super deallocateRenderResources];}
 - (AUInternalRenderBlock)internalRenderBlock {
- DNAKernel*k=_kernel;float*l=_left.data(),*r=_right.data();AUAudioFrameCount maxFrames=4096;
+ DNAKernel*k=_kernel;float*l=_left.data(),*r=_right.data(),*packed=_interleaved.data();AUAudioFrameCount maxFrames=HostFrameCapacity;
  return ^AUAudioUnitStatus(AudioUnitRenderActionFlags *flags,const AudioTimeStamp *time,AUAudioFrameCount count,NSInteger bus,AudioBufferList *output,const AURenderEvent *events,AURenderPullInputBlock pull){
   if(bus!=0||count>maxFrames||!l||!r||output->mNumberBuffers<1)return kAudioUnitErr_TooManyFramesToProcess;
+  // A host may negotiate either planar stereo, interleaved stereo, or mono.
+  // Validate its storage before advancing voices or writing output.
+  BOOL stereoPacked=output->mNumberBuffers==1&&output->mBuffers[0].mNumberChannels==2;
+  if(output->mNumberBuffers>2||(!stereoPacked&&output->mBuffers[0].mNumberChannels!=1)||(output->mNumberBuffers==2&&output->mBuffers[1].mNumberChannels!=1))return kAudioUnitErr_FormatNotSupported;
+  for(UInt32 i=0;i<output->mNumberBuffers;i++){UInt32 required=count*sizeof(float)*(stereoPacked?2:1);if(output->mBuffers[i].mData&&output->mBuffers[i].mDataByteSize<required)return kAudioUnitErr_TooManyFramesToProcess;}
   uint32_t cursor=0;const AURenderEvent*event=events;
   while(event){int64_t when=event->head.eventSampleTime==AUEventSampleTimeImmediate?cursor:event->head.eventSampleTime-(int64_t)time->mSampleTime;uint32_t at=(uint32_t)std::max<int64_t>(cursor,std::min<int64_t>(count,when));if(at>cursor){dna_render(k,l+cursor,r+cursor,at-cursor);cursor=at;}
    switch(event->head.eventType){case AURenderEventMIDI:if(event->MIDI.length>=3)dna_midi(k,event->MIDI.data[0],event->MIDI.data[1],event->MIDI.data[2]);break;
@@ -79,7 +89,11 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
    event=event->head.next;
   }
   if(cursor<count)dna_render(k,l+cursor,r+cursor,count-cursor);
-  for(UInt32 channel=0;channel<output->mNumberBuffers;channel++){float*source=channel==0?l:r;if(!output->mBuffers[channel].mData)output->mBuffers[channel].mData=source;else memcpy(output->mBuffers[channel].mData,source,count*sizeof(float));output->mBuffers[channel].mDataByteSize=count*sizeof(float);}
+  if(stereoPacked){
+   float*target=output->mBuffers[0].mData?(float*)output->mBuffers[0].mData:packed;
+   for(uint32_t i=0;i<count;i++){target[2*i]=l[i];target[2*i+1]=r[i];}
+   output->mBuffers[0].mData=target;output->mBuffers[0].mDataByteSize=count*2*sizeof(float);
+  }else for(UInt32 channel=0;channel<output->mNumberBuffers;channel++){float*source=channel==0?l:r;if(!output->mBuffers[channel].mData)output->mBuffers[channel].mData=source;else if(output->mBuffers[channel].mData!=source)memcpy(output->mBuffers[channel].mData,source,count*sizeof(float));output->mBuffers[channel].mDataByteSize=count*sizeof(float);}
   (void)flags;(void)pull;return noErr;
  };
 }
