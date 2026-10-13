@@ -55,6 +55,8 @@ int main(){@autoreleasepool {
   assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);
   for(UInt32 i=0;i<buffers;i++)assert(hostOutput.buffers[i].mData&&hostOutput.buffers[i].mDataByteSize==8192*sizeof(float)*(packed?2:1));
   assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr); // Reuse AU-owned storage.
+  // The framework render bridge must agree with the advertised bus layout.
+  auto bridgeRender=hostUnit.renderBlock;assert(bridgeRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,nil)==noErr);
   float sentinel=123;hostOutput.buffers[0].mData=&sentinel;hostOutput.buffers[0].mDataByteSize=sizeof(float);
   assert(hostRender(&flags,&time,512,0,(AudioBufferList*)&hostOutput,NULL,nil)!=noErr);assert(sentinel==123);
   [hostUnit deallocateRenderResources];

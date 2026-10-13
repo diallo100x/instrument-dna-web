@@ -22,6 +22,22 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
   if(physical[@"lossSampleRate"]){if(![physical[@"lossSampleRate"] isKindOfClass:NSNumber.class])return NO;m.loss_rate=[physical[@"lossSampleRate"] floatValue];if(m.loss_rate==0)return NO;}
   if(!dna_physical_valid(&m))return NO;*output=m;return YES;
 }
+// AUAudioUnitBus's default format setter rejects stereo interleaved PCM on
+// some SDKs. Keep its canonical channel/rate bookkeeping while exposing the
+// actual supported client layout through the public format property.
+@interface DNAOutputBus : AUAudioUnitBus
+@end
+@implementation DNAOutputBus {AVAudioFormat *_clientFormat;}
+- (AVAudioFormat*)format {return _clientFormat?:super.format;}
+- (BOOL)setFormat:(AVAudioFormat*)format error:(NSError**)error {
+ if(format.commonFormat!=AVAudioPCMFormatFloat32||format.channelCount<1||format.channelCount>2||!std::isfinite(format.sampleRate)||format.sampleRate<8000||format.sampleRate>192000||self.ownerAudioUnit.renderResourcesAllocated){if(error)*error=Failure(@"Unsupported output format or active render resources");return NO;}
+ if(self.ownerAudioUnit&&![self.ownerAudioUnit shouldChangeToFormat:format forBus:self]){if(error)*error=Failure(@"Host output format change refused");return NO;}
+ AVAudioFormat*canonical=[[AVAudioFormat alloc]initStandardFormatWithSampleRate:format.sampleRate channels:format.channelCount];
+ if(![super setFormat:canonical error:error])return NO;
+ [self willChangeValueForKey:@"format"];_clientFormat=format;[self didChangeValueForKey:@"format"];
+ if(error)*error=nil;return YES;
+}
+@end
 @implementation DNAudioUnit {
  DNAKernel *_kernel; AUAudioUnitBus *_output; AUAudioUnitBusArray *_outputs,*_inputs; AUParameterTree *_tree;
  std::vector<float> _left,_right,_interleaved; NSData *_modelData; NSLock *_stateLock;
@@ -40,7 +56,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  _kernel=dna_kernel_create(44100);if(!_kernel){if(error)*error=Failure(@"Cannot allocate instrument kernel");return nil;}
  _stateLock=[NSLock new];_modelData=[NSData data];self.maximumFramesToRender=4096;_left.resize(HostFrameCapacity);_right.resize(HostFrameCapacity);_interleaved.resize(HostFrameCapacity*2);
  NSLog(@"InstrumentDNA AU initialized: type=%u subtype=%u",description.componentType,description.componentSubType);
- _output=[[AUAudioUnitBus alloc] initWithFormat:[[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:2] error:error];if(!_output)return nil;
+ _output=[[DNAOutputBus alloc] initWithFormat:[[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:2] error:error];if(!_output)return nil;
  _output.maximumChannelCount=2;_output.supportedChannelCounts=@[@1,@2];
  _outputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeOutput busses:@[_output]];
  _inputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeInput busses:@[]];
