@@ -13,6 +13,7 @@ final class StandaloneHost:ObservableObject {
     init(){
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--editor-smoke-test") {DispatchQueue.main.async {EditorSmokeTest.run()}}
+        if ProcessInfo.processInfo.arguments.contains("--extension-host-smoke-test") {DispatchQueue.main.asyncAfter(deadline:.now()+1){ExtensionHostSmokeTest.run()}}
         #endif
         AUAudioUnit.registerSubclass(DNAudioUnit.self,as:component,name:"Diallo Beats Audio Lab: Instrument DNA",version:0x00010000)
         AVAudioUnit.instantiate(with:component,options:[]){[weak self] unit,error in

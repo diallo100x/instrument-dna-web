@@ -45,13 +45,27 @@ jobs:
           grep -q INSTRUMENT_DNA_READY "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_FITTING_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_EDITOR_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
+      - name: Host the shipped AUv3 extension and request its remote editor
+        timeout-minutes: 3
+        run: |
+          DEVICE=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["state"]=="Booted"))')
+          xcrun simctl terminate "$DEVICE" org.diallobeats.instrumentdna
+          xcrun simctl launch --stdout="$RUNNER_TEMP/native-remote-host.log" --stderr="$RUNNER_TEMP/native-remote-host-errors.log" "$DEVICE" org.diallobeats.instrumentdna --extension-host-smoke-test
+          for attempt in $(seq 1 24); do
+            if grep -q INSTRUMENT_DNA_EXTENSION_HOST_PASSED "$RUNNER_TEMP/native-remote-host.log"; then break; fi
+            if grep -q INSTRUMENT_DNA_EXTENSION_HOST_FAILED "$RUNNER_TEMP/native-remote-host.log"; then break; fi
+            sleep 5
+          done
+          xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-remote-editor.png"
+          cat "$RUNNER_TEMP/native-remote-host.log"
+          grep -q INSTRUMENT_DNA_EXTENSION_HOST_PASSED "$RUNNER_TEMP/native-remote-host.log"
       - name: Collect simulator crash diagnostics
         if: always()
         timeout-minutes: 2
         run: |
           mkdir -p "$RUNNER_TEMP/native-diagnostics"
           find "$HOME/Library/Logs/DiagnosticReports" -name 'InstrumentDNA*.ips' -exec cp {} "$RUNNER_TEMP/native-diagnostics/" \;
-          xcrun simctl spawn booted log show --last 3m --style compact --predicate 'process == "InstrumentDNA"' > "$RUNNER_TEMP/native-diagnostics/app-system.log" 2>&1 || true
+          xcrun simctl spawn booted log show --last 3m --style compact --predicate 'process == "InstrumentDNA" OR process == "InstrumentDNAInstrument"' > "$RUNNER_TEMP/native-diagnostics/app-system.log" 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -60,4 +74,6 @@ jobs:
             ${{ runner.temp }}/native-build.log
             ${{ runner.temp }}/native-ipad.png
             ${{ runner.temp }}/native-app*.log
+            ${{ runner.temp }}/native-remote*.log
+            ${{ runner.temp }}/native-remote-editor.png
             ${{ runner.temp }}/native-diagnostics
