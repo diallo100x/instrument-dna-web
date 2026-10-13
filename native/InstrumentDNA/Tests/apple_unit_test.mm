@@ -44,12 +44,12 @@ int main(){@autoreleasepool {
   assert(([hostUnit.channelCapabilities isEqual:@[@0,@1,@0,@2]]));
   auto hostRender=hostUnit.internalRenderBlock; // Obtained before host negotiation.
   AVAudioFormat*format=[[AVAudioFormat alloc]initWithCommonFormat:AVAudioPCMFormatFloat32 sampleRate:48000 channels:channels interleaved:interleaved];
-  assert([hostUnit.outputBusses[0] setFormat:format error:&hostError]);hostUnit.maximumFramesToRender=8192;assert([hostUnit allocateRenderResourcesAndReturnError:&hostError]);assert(!hostError);
+  BOOL accepted=[hostUnit.outputBusses[0] setFormat:format error:&hostError];if(!accepted)NSLog(@"Host format rejected: %@",hostError);assert(accepted);hostUnit.maximumFramesToRender=8192;assert([hostUnit allocateRenderResourcesAndReturnError:&hostError]);assert(!hostError);
   [hostUnit touchNote:0 midi:69 velocity:1 down:YES];
   BOOL packed=interleaved&&channels==2;
   std::vector<float> first(8192*(packed?2:1)+1,123),second(8193,123);UInt32 buffers=packed?1:channels;
   struct {UInt32 count;AudioBuffer buffers[2];} hostOutput={buffers,{{(UInt32)(packed?2:1),(UInt32)(8192*sizeof(float)*(packed?2:1)),first.data()},{1,8192*sizeof(float),second.data()}}};
-  assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);
+  flags=kAudioUnitRenderAction_OutputIsSilence;assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);assert(!(flags&kAudioUnitRenderAction_OutputIsSilence));
   double power=0;for(int i=0;i<8192*(packed?2:1);i++){assert(std::isfinite(first[i]));power+=first[i]*first[i];}assert(power>1e-5);assert(first[8192*(packed?2:1)]==123);assert(second[8192]==123);
   for(UInt32 i=0;i<buffers;i++){hostOutput.buffers[i].mData=NULL;hostOutput.buffers[i].mDataByteSize=0;}
   assert(hostRender(&flags,&time,8192,0,(AudioBufferList*)&hostOutput,NULL,nil)==noErr);

@@ -41,6 +41,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  _stateLock=[NSLock new];_modelData=[NSData data];self.maximumFramesToRender=4096;_left.resize(HostFrameCapacity);_right.resize(HostFrameCapacity);_interleaved.resize(HostFrameCapacity*2);
  NSLog(@"InstrumentDNA AU initialized: type=%u subtype=%u",description.componentType,description.componentSubType);
  _output=[[AUAudioUnitBus alloc] initWithFormat:[[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:2] error:error];if(!_output)return nil;
+ _output.maximumChannelCount=2;_output.supportedChannelCounts=@[@1,@2];
  _outputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeOutput busses:@[_output]];
  _inputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeInput busses:@[]];
  NSArray*names=@[@"Attack",@"Body",@"Brightness",@"Harmonics",@"Noise",@"Resonance",@"Dynamics",@"Articulation",@"Movement",@"Drive",@"Tone X",@"Tone Y",@"Behavior X",@"Behavior Y",@"Volume",@"Global Bend",@"Modulation",@"Bend Range",@"Voice Mode",@"Legato Glide",@"Articulation Layer",@"Recording Era",@"Era Amount",@"Trill Rate",@"Trill Interval",@"Velocity Trill",@"Trill Threshold",@"Note Length",@"Engine Mode",@"Exciter Hardness",@"Strike Position",@"Damping",@"Exciter Noise"];
@@ -62,6 +63,9 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  [configurations enumerateObjectsUsingBlock:^(AUAudioUnitViewConfiguration*c,NSUInteger index,BOOL*stop){if(c.width>=0&&c.height>=0&&std::isfinite(c.width)&&std::isfinite(c.height))[accepted addIndex:index];}];return accepted;
 }
 - (NSArray<NSNumber*>*)channelCapabilities{return @[@0,@1,@0,@2];}
+- (BOOL)shouldChangeToFormat:(AVAudioFormat*)format forBus:(AUAudioUnitBus*)bus {
+ return !self.renderResourcesAllocated&&bus==_output&&format.commonFormat==AVAudioPCMFormatFloat32&&format.channelCount>=1&&format.channelCount<=2&&std::isfinite(format.sampleRate)&&format.sampleRate>=8000&&format.sampleRate<=192000;
+}
 - (BOOL)canProcessInPlace{return NO;}
 - (BOOL)supportsMPE{return YES;}
 - (BOOL)supportsUserPresets{return YES;}
@@ -94,7 +98,8 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
    for(uint32_t i=0;i<count;i++){target[2*i]=l[i];target[2*i+1]=r[i];}
    output->mBuffers[0].mData=target;output->mBuffers[0].mDataByteSize=count*2*sizeof(float);
   }else for(UInt32 channel=0;channel<output->mNumberBuffers;channel++){float*source=channel==0?l:r;if(!output->mBuffers[channel].mData)output->mBuffers[channel].mData=source;else if(output->mBuffers[channel].mData!=source)memcpy(output->mBuffers[channel].mData,source,count*sizeof(float));output->mBuffers[channel].mDataByteSize=count*sizeof(float);}
-  (void)flags;(void)pull;return noErr;
+  if(flags)*flags &= ~kAudioUnitRenderAction_OutputIsSilence;
+  (void)pull;return noErr;
  };
 }
 - (void)touchNote:(NSInteger)slot midi:(NSInteger)midi velocity:(float)velocity down:(BOOL)down{if(slot>=0&&slot<DNA_TOUCH_SLOTS)dna_note_set(_kernel,(int)slot,(int)midi,velocity,down);}

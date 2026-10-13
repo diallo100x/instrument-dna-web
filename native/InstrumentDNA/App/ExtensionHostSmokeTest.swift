@@ -42,8 +42,8 @@ enum ExtensionHostSmokeTest {
                 let audio=AVAudioEngine();engine=audio;audio.attach(unit)
                 audio.connect(unit,to:audio.mainMixerNode,format:unit.outputFormat(forBus:0))
                 audio.mainMixerNode.installTap(onBus:0,bufferSize:512,format:nil){buffer,_ in probe.add(buffer)}
-                try audio.start()
                 guard let midi=unit.auAudioUnit.scheduleMIDIEventBlock else {fail("No MIDI scheduling block");return}
+                try audio.start()
                 let bytes:[UInt8]=[0x90,69,100];bytes.withUnsafeBufferPointer{midi(AUEventSampleTimeImmediate,0,3,$0.baseAddress!)}
                 DispatchQueue.main.asyncAfter(deadline:.now()+3){
                     host.view.layoutIfNeeded()
