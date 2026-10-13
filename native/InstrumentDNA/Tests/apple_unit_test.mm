@@ -61,5 +61,11 @@ int main(){@autoreleasepool {
   assert(hostRender(&flags,&time,512,0,(AudioBufferList*)&hostOutput,NULL,nil)!=noErr);assert(sentinel==123);
   [hostUnit deallocateRenderResources];
  }
+ // Verify the advertised upper bound and reject a frame beyond scratch capacity.
+ NSError*capacityError=nil;DNAudioUnit*capacityUnit=[[DNAudioUnit alloc]initWithComponentDescription:component options:0 error:&capacityError];assert(capacityUnit&&!capacityError);
+ capacityUnit.maximumFramesToRender=65536;assert([capacityUnit allocateRenderResourcesAndReturnError:&capacityError]);[capacityUnit touchNote:0 midi:69 velocity:.8 down:YES];
+ struct {UInt32 count;AudioBuffer buffers[2];} capacityOutput={2,{{1,0,NULL},{1,0,NULL}}};auto capacityRender=capacityUnit.internalRenderBlock;
+ assert(capacityRender(&flags,&time,65536,0,(AudioBufferList*)&capacityOutput,NULL,nil)==noErr);assert(capacityOutput.buffers[0].mDataByteSize==65536*sizeof(float));
+ assert(capacityRender(&flags,&time,65537,0,(AudioBufferList*)&capacityOutput,NULL,nil)==kAudioUnitErr_TooManyFramesToProcess);[capacityUnit deallocateRenderResources];
  [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
 }}

@@ -85,7 +85,7 @@ class InstrumentEditorController: AUViewController, AUAudioUnitFactory {
         controller.didMove(toParent: self)
         hosting = controller
         startup.isHidden = true
-        NSLog("InstrumentDNA extension editor installed · bounds=%@", NSStringFromCGRect(view.bounds))
+        NSLog("InstrumentDNA extension editor installed · bounds=%@", String(describing: view.bounds))
         view.setNeedsLayout()
     }
 }
