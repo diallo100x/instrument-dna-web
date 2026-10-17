@@ -8,7 +8,15 @@ assert extension['NSExtension']['NSExtensionPrincipalClass']=='$(PRODUCT_MODULE_
 project=(root/'InstrumentDNA.xcodeproj/project.pbxproj').read_text()
 ids=re.findall(r'\b([A-F0-9]{24}) = \{ \"isa\"',project)
 assert len(ids)==len(set(ids)), 'duplicate project IDs'
-assert 'Embed App Extensions' in project and '15.4' in project
+assert 'Embed App Extensions' in project
+# Keep both configurations compatible with iPadOS 15.4.1. Targets inherit
+# the project minimum; reject a newer target override as well.
+minimums=re.findall(r'"IPHONEOS_DEPLOYMENT_TARGET" = "([^"]+)";',project)
+assert minimums == ['15.4','15.4'], f'unexpected deployment targets: {minimums}'
+assert project.count('"CLANG_WARN_UNGUARDED_AVAILABILITY" = "YES_ERROR";') == 2
+assert app['CFBundleShortVersionString'] == extension['CFBundleShortVersionString'] == '0.3.2'
+assert app['CFBundleVersion'] == extension['CFBundleVersion'] == '6'
+assert component['version'] == 65542
 for directory in ['DSP','Shared','App','Extension']:
     for file in (root/directory).iterdir():
         if file.suffix in ['.c','.m','.mm','.h','.swift']:

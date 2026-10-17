@@ -87,3 +87,11 @@ See [0.3.1 host compatibility and Koala retest](KOALA_HOST_031.md). The build ad
 host audio-format/block negotiation, a component-version refresh and a real
 out-of-process AUv3 editor/MIDI/audio acceptance test. Existing model formats and
 parameter addresses stay stable. Actual Koala acceptance remains a device test.
+
+## v0.3.2 · iPadOS 15.4.1 compatibility patch
+
+See [the installation and compatibility notes](IPADOS_1541.md). Both targets retain
+the iOS 15.4 deployment floor, including 15.4.1. This patch adds a regression guard
+against deployment-target drift, errors for unguarded newer Objective-C APIs, and
+a Release device compile with built-bundle minimum-OS verification. The sound
+engine, model format, bundle IDs and parameter addresses are unchanged.
