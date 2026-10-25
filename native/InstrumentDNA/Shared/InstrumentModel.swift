@@ -154,7 +154,7 @@ final class InstrumentModel: ObservableObject {
                 DispatchQueue.main.async {
                     guard let self=self else {return};self.fittingPhysical=false
                     guard self.unit.modelData==original else {self.status="Sources or edits changed during fitting. Fit again.";return}
-                    do{let live=self.values;_ = try self.unit.loadModelData(result);for(id,value) in live where id<29 && id != 28 {self.set(id,value)};self.set(28,4);self.refreshModel();self.status="Fitted \(count) notes · \(low) low-confidence fits. Source slices and Hybrid retained. \(message)"}catch{self.status="Physical fit: \(error.localizedDescription)"}
+                    do{let live=self.values;_ = try self.unit.loadModelData(result);for(id,value) in live where (id<29 || id==33) && id != 28 {self.set(id,value)};self.set(28,4);self.refreshModel();self.status="Fitted \(count) notes · \(low) low-confidence fits. Source slices and Hybrid retained. \(message)"}catch{self.status="Physical fit: \(error.localizedDescription)"}
                 }
             }catch{DispatchQueue.main.async{self?.fittingPhysical=false;self?.status="Physical fit: \(error.localizedDescription)"}}
         }
@@ -204,7 +204,7 @@ final class InstrumentModel: ObservableObject {
         performance["selectedArticulation"] = ["sustain","trill","staccato","accent","breathy","alternate"][Int(value(20))]
         performance["velocityTrill"] = value(25) > 0.5;performance["trillThreshold"] = value(26);performance["trillRateHz"] = value(23);performance["trillInterval"] = value(24);performance["noteLengthSeconds"] = value(27)
         dna["performance"] = performance;dna["era"] = ["recording":["none","vintage","tape"][Int(value(21))],"amount":value(22)]
-        var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};dna["extensions"] = ext
+        performance["referenceHz"]=value(33);dna["performance"]=performance;var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};dna["extensions"] = ext
         if includeAudio && document["format"] as? String != "instrument-dna-playable-comparison" { throw ModelError("This Reflection contains no source slices. Save it as a Reflection.") }
         if includeAudio && document["format"] as? String == "instrument-dna-playable-comparison" { document["reflection"] = dna;document["hybridMode"] = value(28)==4 ? "Physical" : value(28)==3 ? "Mallet" : "HybridOriginal";return try JSONSerialization.data(withJSONObject:document,options:.sortedKeys) }
         return try JSONSerialization.data(withJSONObject:dna,options:.sortedKeys)

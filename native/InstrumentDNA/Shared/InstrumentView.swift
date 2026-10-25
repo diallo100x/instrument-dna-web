@@ -65,7 +65,7 @@ struct InstrumentView: View {
         case "Performance · articulation layers":
             enumPicker("Voice behavior",id:18,labels:["Poly","Mono","Legato"])
             ParameterSlider(model:model,id:19,title:"Legato glide · ms",range:10...250)
-            enumPicker("Articulation layer",id:20,labels:["Sustain","Trill","Staccato","Accent","Breathy","Alternate"])
+            enumPicker("Articulation layer",id:20,labels:((model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] != nil ? ["Sustain / picked","Trill","Palm mute","Accent / hard pick","Soft / finger","Harmonic"] : ["Sustain","Trill","Staccato","Accent","Breathy","Alternate"]))
             Toggle("High velocity selects Trill",isOn:Binding(get:{model.value(25)>0.5},set:{model.set(25,$0 ? 1:0)}))
             ParameterSlider(model:model,id:26,title:"Trill velocity threshold",range:1...127)
             ParameterSlider(model:model,id:23,title:"Generated trill rate · Hz",range:3...15)
@@ -104,15 +104,17 @@ struct InstrumentView: View {
             if model.noteEntries.isEmpty {Text("Import a playable comparison from the web app to review its detected notes. Audio-free Reflections provide model previews only.")}
             ForEach(model.noteEntries){entry in NoteReviewRow(model:model,entry:entry)}
         case "Main · musical controls":
+            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("440 Hz").tag(440);Text("432 Hz").tag(432)}.pickerStyle(.segmented)
             LazyVGrid(columns:[GridItem(.adaptive(minimum:180))],spacing:18){ForEach(macros.indices,id:\.self){i in ParameterSlider(model:model,id:i,title:macros[i])}}
             Text("Each macro also has its own page with a baseline reset. Use the side arrows or Module menu to reach every control.").font(.caption)
         case "Era DNA":enumPicker("Recording Era",id:21,labels:["None","Vintage bandwidth","Warm bandwidth"]);ParameterSlider(model:model,id:22,title:"Era amount");Text("A separate adjustable bandwidth layer. These are illustrative presets, not measured historical recording chains.").font(.caption)
         case "Output":
+            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("A4 = 440 Hz").tag(440);Text("A4 = 432 Hz").tag(432)}.pickerStyle(.segmented)
             ParameterSlider(model:model,id:14,title:"Master volume")
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.3.2 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.4.0 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}

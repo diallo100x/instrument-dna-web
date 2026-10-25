@@ -6,13 +6,14 @@ const page=await browser.newPage({viewport:{width:1100,height:820},acceptDownloa
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 await page.addInitScript(()=>{
  const input={onmidimessage:null};window.__testMidi=input;Object.defineProperty(navigator,'requestMIDIAccess',{value:async()=>({inputs:new Map([['test',input]]),onstatechange:null})});
+ const OriginalWorklet=window.AudioWorkletNode;window.AudioWorkletNode=new Proxy(OriginalWorklet,{construct(target,args){const voice=new target(...args);window.__testWorklet=voice;return voice;}});
  const Native=window.AudioContext;window.AudioContext=new Proxy(Native,{construct(target,args){const ctx=new target(...args);window.__testContext=ctx;return ctx;}});
  const connect=AudioNode.prototype.connect;AudioNode.prototype.connect=function(destination,...args){
   if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();analyser.fftSize=2048;connect.call(this,analyser);connect.call(analyser,destination,...args);window.__testAnalyser=analyser;return destination;}return connect.call(this,destination,...args);
  };
 });
-await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===7);
-const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe'];
+await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===8);
+const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar'];
 for(const id of ids){
  await page.selectOption('#factoryPreset',id);await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('authored physical model'));
  assert.equal(await page.inputValue('#mode'),'Physical');
@@ -30,6 +31,19 @@ await page.waitForTimeout(120);
 assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}), 'MIDI physical voice silent');
 await page.evaluate(()=>window.__testMidi.onmidimessage({data:new Uint8Array([128,67,0])}));
 await page.waitForTimeout(260);
+// Scalar Guitar: all generated layers, tuning at the actual worklet and persistence.
+await page.selectOption('#factoryPreset','scalar-guitar');await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Scalar Guitar'));
+for(const reference of ['432','440'])for(const role of ['sustain','trill','staccato','accent','breathy','alternate']){
+ await page.selectOption('#referenceHz',reference);await page.selectOption('#articulation',role);
+ const key=page.locator('[data-n="69"]');await key.scrollIntoViewIfNeeded();const b=await key.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(90);
+ assert.equal(await page.evaluate(()=>window.__testWorklet.parameters.get('frequency').value),Number(reference));
+ assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}),`Scalar ${reference} ${role} silent`);
+ await page.mouse.up();await page.waitForTimeout(200);
+}
+await page.selectOption('#referenceHz','432');await page.selectOption('#articulation','staccato');
+const scalarDownload=page.waitForEvent('download');await page.click('#export');const scalarFile=await (await scalarDownload).path();const scalar=JSON.parse(await fs.readFile(scalarFile,'utf8'));
+assert.equal(scalar.performance.referenceHz,432);assert.equal(scalar.performance.selectedArticulation,'staccato');assert.equal(scalar.extensions.physicalModel.kind,'additive-string');
+await page.selectOption('#referenceHz','440');await page.locator('#import').setInputFiles(scalarFile);await page.waitForFunction(()=>document.querySelector('#referenceHz').value==='432');assert.equal(await page.inputValue('#articulation'),'staccato');
 // Save/load audio-free physical edits through the existing Reflection workflow.
 await page.selectOption('#factoryPreset','marimba');await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Marimba'));
 await page.locator('[aria-label="Damping"]').evaluate(e=>{e.value='0.81';e.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -57,4 +71,4 @@ for(const kind of ['modal','waveguide']){
 }
 const hybridSave=page.waitForEvent('download');await page.click('#saveComparison');const hybridFile=await (await hybridSave).path();await page.locator('#import').setInputFiles(hybridFile);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Original slices retained'));assert.equal(await page.inputValue('#mode'),'HybridOriginal');
 await page.screenshot({path:'physical-browser.png',fullPage:true});
-assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, six live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');
+assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, seven live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');

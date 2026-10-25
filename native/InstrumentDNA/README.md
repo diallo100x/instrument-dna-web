@@ -95,3 +95,13 @@ the iOS 15.4 deployment floor, including 15.4.1. This patch adds a regression gu
 against deployment-target drift, errors for unguarded newer Objective-C APIs, and
 a Release device compile with built-bundle minimum-OS verification. The sound
 engine, model format, bundle IDs and parameter addresses are unchanged.
+
+## v0.4.0 · Scalar Guitar
+
+Factory instruments now include **DBAL · Scalar Guitar**, an authored eight-partial
+voice derived from the supplied F# harmonic recipe, with E2–E6 range and generated
+articulation behaviors. Main and Output expose the 432/440 Hz reference toggle.
+Reflection export and AU host state preserve tuning. New AU address 33 is appended;
+previous addresses remain stable. This is a starting guitar design, not an analyzed
+recording or a claim of captured-guitar realism. See `SCALAR_GUITAR.md` for details.
+The iOS 15.4 minimum, including iPadOS 15.4.1, remains in both targets.
