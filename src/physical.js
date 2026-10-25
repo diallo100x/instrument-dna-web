@@ -1,19 +1,40 @@
 // Independently authored physical DSP. See docs/physical-modeling.md for provenance.
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 export function validatePhysicalModel(m){
- if(!m||m.version!==1||!['modal','waveguide'].includes(m.kind)||typeof m.continuous!=='boolean'||!Array.isArray(m.modes)||m.modes.length<1||m.modes.length>16)throw Error('Unsupported physical model');
+ if(!m||m.version!==1||!['modal','waveguide','additive-string'].includes(m.kind)||typeof m.continuous!=='boolean'||!Array.isArray(m.modes)||m.modes.length<1||m.modes.length>16)throw Error('Unsupported physical model');
  if(m.waveguideTone!==undefined&&(!Number.isFinite(m.waveguideTone)||m.waveguideTone<.05||m.waveguideTone>.98))throw Error('Invalid waveguide loss tone');
  if(m.lossSampleRate!==undefined&&(!Number.isFinite(m.lossSampleRate)||m.lossSampleRate<8000||m.lossSampleRate>192000))throw Error('Invalid loss sample rate');
  for(const [key,lo,hi] of [['hardness',0,1],['position',0,1],['noise',0,1],['decay',.05,15]])if(!Number.isFinite(m[key])||m[key]<lo||m[key]>hi)throw Error(`Invalid physical ${key}`);
  if(m.modes.some(x=>!x||!Number.isFinite(x.ratio)||x.ratio<.25||x.ratio>64||!Number.isFinite(x.gain)||x.gain<0||x.gain>1||!Number.isFinite(x.t60)||x.t60<.02||x.t60>15))throw Error('Invalid physical modes');return m;
 }
 export class PhysicalVoice {
- constructor(model,rate){this.model=validatePhysicalModel(model);this.rate=rate;this.y1=new Float64Array(16);this.y2=new Float64Array(16);this.a1=new Float64Array(16);this.a2=new Float64Array(16);this.inputGain=new Float64Array(16);this.delay=new Float32Array(8192);this.frame=0;this.age=0;this.write=0;this.random=12345;this.exciter=0;this.loop=0;this.lastSample=0;}
+ constructor(model,rate){this.model=validatePhysicalModel(model);this.rate=rate;this.y1=new Float64Array(16);this.y2=new Float64Array(16);this.a1=new Float64Array(16);this.a2=new Float64Array(16);this.inputGain=new Float64Array(16);this.delay=new Float32Array(8192);this.phase=new Float64Array(16);this.body1=0;this.body2=0;this.frame=0;this.age=0;this.write=0;this.random=12345;this.exciter=0;this.loop=0;this.lastSample=0;}
  tick(hz,controls={}){
   const m=this.model,sr=this.rate,v=clamp(controls.velocity??.8),hardness=clamp(controls.hardness??m.hardness),position=clamp(controls.position??m.position,.02,.98),damping=clamp(controls.damping??.5),richness=clamp(controls.richness??.5),noiseAmount=clamp(controls.noise??m.noise);
   hz=clamp(hz,40,sr*.4);this.random=(Math.imul(this.random,1664525)+1013904223)>>>0;const noise=this.random/4294967295*2-1;
   const cutoff=500+hardness**2*14000*(.3+.7*v),coefficient=1-Math.exp(-2*Math.PI*Math.min(cutoff,sr*.45)/sr);this.exciter+=coefficient*(noise-this.exciter);let output=0;
-  if(m.kind==='waveguide'){
+  if(m.kind==='additive-string'){
+   // Authored guitar: pitch-independent register behavior, continuous partial
+   // phases, individual decay and a short, velocity-sensitive pick exciter.
+   const midi=clamp(controls.midi??69,40,88),register=(midi-66)/26,role=Math.round(controls.articulation??0),muted=role===2,soft=role===4,harmonic=role===5;
+   const decayScale=(1-register*.25)*(muted?.15:1)*(1.5-damping),bite=clamp(.35+v*.65+(hardness-.5)*.5+(richness-.5)*.4,.12,1.5)*(soft?.6:1)*(role===3?1.2:1);
+   let normal=0;
+   for(let i=0;i<m.modes.length;i++){
+    const mode=m.modes[i],h=mode.ratio,b=.000035*(1-clamp((midi-40)/48)),frequency=hz*h*Math.sqrt((1+b*h*h)/(1+b));
+    this.phase[i]=(this.phase[i]+2*Math.PI*frequency/sr)%(2*Math.PI);
+    if(frequency>=sr*.45)continue;
+    const pickup=i===0?1:(.6+.4*Math.abs(Math.sin(Math.PI*position*h)))/(.6+.4*Math.abs(Math.sin(Math.PI*.25*h)));
+    const spectral=Math.pow(bite,Math.log2(Math.max(1,h)))*Math.pow(h,register*.12),gain=mode.gain*pickup*spectral*(harmonic&&i===0?.06:1);
+    output+=Math.sin(this.phase[i])*gain*Math.exp(-6.907755*this.age/(mode.t60*decayScale));normal+=mode.gain;
+   }
+   output/=Math.max(1,normal);
+   output+=this.exciter*noiseAmount*(.015+.08*v)*Math.exp(-this.age/(soft?.008:.018));
+   // Fixed body/pickup coloration, independent from the played pitch.
+   this.body1+=(1-Math.exp(-2*Math.PI*180/sr))*(output-this.body1);
+   this.body2+=(1-Math.exp(-2*Math.PI*3200/sr))*(output-this.body2);
+   output=this.body2+this.body1*.18*clamp(controls.body??.5);
+   output*=1-Math.exp(-this.age/(soft?.008:.002));
+  }else if(m.kind==='waveguide'){
    const fittedTone=m.waveguideTone?1-Math.pow(1-m.waveguideTone,(m.lossSampleRate??sr)/sr):0;
    const tone=m.waveguideTone?clamp(fittedTone+(hardness-m.hardness)*.3,.01,.99):clamp(.2+.7*hardness+.08*v,.2,.98),delay=clamp(sr/hz-(m.waveguideTone?(1-tone)/tone:.5),2,8189),whole=Math.floor(delay),fraction=delay-whole;
    const at=(this.write+8192-whole)%8192,previous=(at+8191)%8192,delayed=this.delay[at]*(1-fraction)+this.delay[previous]*fraction;
@@ -42,6 +63,6 @@ export class PhysicalVoice {
  }
 }
 export function renderPhysical(model,sampleRate,midi,velocity=100,seconds=2,controls={}){
- const voice=new PhysicalVoice(model,sampleRate),output=new Float32Array(Math.round(sampleRate*seconds)),hz=440*2**((midi-69)/12);
- for(let i=0;i<output.length;i++)output[i]=voice.tick(hz,{...controls,velocity:velocity/127});return output;
+ const voice=new PhysicalVoice(model,sampleRate),output=new Float32Array(Math.round(sampleRate*seconds)),hz=(controls.referenceHz??440)*2**((midi-69)/12);
+ for(let i=0;i<output.length;i++)output[i]=voice.tick(hz,{...controls,velocity:velocity/127,midi});return output;
 }

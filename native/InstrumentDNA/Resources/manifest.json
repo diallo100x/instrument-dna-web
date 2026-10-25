@@ -28,5 +28,10 @@
     "id": "reed-pipe",
     "name": "DBAL · Reed Pipe (experimental)",
     "path": "presets/factory/reed-pipe.json"
+  },
+  {
+    "id": "scalar-guitar",
+    "name": "DBAL · Scalar Guitar",
+    "path": "presets/factory/scalar-guitar.json"
   }
 ]

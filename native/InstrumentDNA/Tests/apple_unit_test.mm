@@ -19,12 +19,18 @@ int main(){@autoreleasepool {
  float left[512]={0},right[512]={0};struct {UInt32 count;AudioBuffer buffers[2];} output={2,{{1,sizeof(left),left},{1,sizeof(right),right}}};AudioTimeStamp time={0};time.mFlags=kAudioTimeStampSampleTimeValid;AudioUnitRenderActionFlags flags=0;
  auto render=unit.internalRenderBlock;assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);double energy=0;for(float x:left){assert(std::isfinite(x));energy+=x*x;}assert(energy>.001);
  [unit panic];
- NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe"];
+ NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe",@"scalar-guitar"];
  for(NSString*name in factory){NSData*json=[NSData dataWithContentsOfFile:[NSString stringWithFormat:@"presets/factory/%@.json",name]];assert(json);assert([unit loadModelData:json error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_ENGINE_MODE].value==4);
  [unit touchNote:0 midi:60 velocity:1 down:YES];double audible=0;for(int block=0;block<32;block++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));audible+=x*x;}}assert(audible>.00001);
  [unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.83;NSDictionary*physicalState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.1;unit.fullState=physicalState;assert(fabs([unit.parameterTree parameterWithAddress:DNA_DAMPING].value-.83)<.001);
  }
  // Analyze actual PCM, load fitted per-anchor models, render, compare and recall host state.
+ NSData*scalarData=[NSData dataWithContentsOfFile:@"native/InstrumentDNA/Resources/scalar-guitar.json"];
+ assert([unit loadModelData:scalarData error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value==440);
+ [unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value=432;NSDictionary*scalarState=unit.fullState;
+ [unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value=440;unit.fullState=scalarState;
+ assert([unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value==432);
+ [unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value=440;
  std::vector<float> decayPCM(32000);for(int i=0;i<32000;i++){double value=0;for(int h=1;h<=4;h++){double tone=.72,base=-log(1000)/2,loss=440*log(tone/sqrt(1+pow(1-tone,2)-2*(1-tone)*cos(6.283185307*440*h/16000)));value+=.35/h*sin(6.283185307*440*h*i/16000)*exp((base+loss)*i/16000);}decayPCM[i]=(float)value;}
  NSData*pcm=[NSData dataWithBytes:decayPCM.data() length:decayPCM.size()*sizeof(float)];
  for(NSString*kind in @[@"modal",@"waveguide"]){NSError*fitError=nil;NSDictionary*fit=[DNAudioUnit fitPhysicalPCM:pcm sampleRate:16000 midi:69 kind:kind error:&fitError];assert(fit&&!fitError);assert([fit[@"model"][@"origin"] isEqual:@"analyzed"]);
@@ -67,5 +73,5 @@ int main(){@autoreleasepool {
  struct {UInt32 count;AudioBuffer buffers[2];} capacityOutput={2,{{1,0,NULL},{1,0,NULL}}};auto capacityRender=capacityUnit.internalRenderBlock;
  assert(capacityRender(&flags,&time,65536,0,(AudioBufferList*)&capacityOutput,NULL,nil)==noErr);assert(capacityOutput.buffers[0].mDataByteSize==65536*sizeof(float));
  assert(capacityRender(&flags,&time,65537,0,(AudioBufferList*)&capacityOutput,NULL,nil)==kAudioUnitErr_TooManyFramesToProcess);[capacityUnit deallocateRenderResources];
- [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 33 parameters and six physical factories, XY/Era recall, host state and audible render passed.");
+ [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 34 parameters and seven factory instruments, XY/Era recall, host state and audible render passed.");
 }}

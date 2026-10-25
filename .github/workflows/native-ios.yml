@@ -39,9 +39,9 @@ jobs:
           for bundle in [app, app / 'PlugIns/InstrumentDNAInstrument.appex']:
               info = plistlib.loads((bundle / 'Info.plist').read_bytes())
               assert info['MinimumOSVersion'] == '15.4', (bundle, info['MinimumOSVersion'])
-              assert info['CFBundleShortVersionString'] == '0.3.2'
-              assert info['CFBundleVersion'] == '6'
-              print(f"{bundle.name}: iOS minimum {info['MinimumOSVersion']}, version 0.3.2 build 6")
+              assert info['CFBundleShortVersionString'] == '0.4.0'
+              assert info['CFBundleVersion'] == '7'
+              print(f"{bundle.name}: iOS minimum {info['MinimumOSVersion']}, version 0.4.0 build 7")
           PY
       - name: Launch standalone app in iPad simulator
         timeout-minutes: 10
