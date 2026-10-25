@@ -15,7 +15,7 @@ await page.addInitScript(()=>{
 await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===8);
 const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar'];
 for(const id of ids){
- await page.selectOption('#factoryPreset',id);await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('authored physical model'));
+ await page.selectOption('#factoryPreset',id);await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('authored physical model'));
  assert.equal(await page.inputValue('#mode'),'Physical');
  const key=page.locator('[data-n="60"]');await key.scrollIntoViewIfNeeded();
 
@@ -32,11 +32,11 @@ assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.f
 await page.evaluate(()=>window.__testMidi.onmidimessage({data:new Uint8Array([128,67,0])}));
 await page.waitForTimeout(260);
 // Scalar Guitar: all generated layers, tuning at the actual worklet and persistence.
-await page.selectOption('#factoryPreset','scalar-guitar');await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Scalar Guitar'));
+await page.selectOption('#factoryPreset','scalar-guitar');await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Scalar Guitar'));
 for(const reference of ['432','440'])for(const role of ['sustain','trill','staccato','accent','breathy','alternate']){
  await page.selectOption('#referenceHz',reference);await page.selectOption('#articulation',role);
  const key=page.locator('[data-n="69"]');await key.scrollIntoViewIfNeeded();const b=await key.boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(90);
- assert.equal(await page.evaluate(()=>window.__testWorklet.parameters.get('frequency').value),Number(reference));
+ assert.equal(await page.evaluate(()=>window.__testWorklet.parameters.get('frequency').value),Number(reference),JSON.stringify({reference,role,status:await page.textContent('#status'),detail:await page.textContent('#detail'),errors}));
  assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}),`Scalar ${reference} ${role} silent`);
  await page.mouse.up();await page.waitForTimeout(200);
 }
@@ -45,7 +45,7 @@ const scalarDownload=page.waitForEvent('download');await page.click('#export');c
 assert.equal(scalar.performance.referenceHz,432);assert.equal(scalar.performance.selectedArticulation,'staccato');assert.equal(scalar.extensions.physicalModel.kind,'additive-string');
 await page.selectOption('#referenceHz','440');await page.locator('#import').setInputFiles(scalarFile);await page.waitForFunction(()=>document.querySelector('#referenceHz').value==='432');assert.equal(await page.inputValue('#articulation'),'staccato');
 // Save/load audio-free physical edits through the existing Reflection workflow.
-await page.selectOption('#factoryPreset','marimba');await page.click('#loadFactory');await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Marimba'));
+await page.selectOption('#factoryPreset','marimba');await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Marimba'));
 await page.locator('[aria-label="Damping"]').evaluate(e=>{e.value='0.81';e.dispatchEvent(new Event('input',{bubbles:true}));});
 const downloadPromise=page.waitForEvent('download');await page.click('#export');const download=await downloadPromise;const filename=await download.path();const dna=JSON.parse(await fs.readFile(filename,'utf8'));assert.equal(dna.extensions.physicalControls.damping,.81);assert(!dna.audio);
 await page.locator('#import').setInputFiles(filename);await page.waitForFunction(()=>document.querySelector('#mode').value==='Physical');
