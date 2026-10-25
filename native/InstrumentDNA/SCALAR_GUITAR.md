@@ -124,3 +124,31 @@ single-note audition export, not a MIDI-performance recorder. Native continues t
 export named DNA Reflections; direct native WAV bounce is not part of this patch.
 Saturation remains unoversampled and no measured cabinet, amp feedback, pickup
 magnetic field or acoustic body identification is claimed.
+
+### Completed performance-update acceptance — October 25, 2026
+
+- All 52 Node tests passed, including pickup spectra, phases, four tuning
+  references, long glide persistence, delayed vibrato, slide render, room decay/
+  reset, malformed controls and legacy dry defaults. Native DSP tests passed with
+  ASan/UBSan, including profiles, slide arrival, room tail/Panic and note range.
+- [Browser acceptance](https://github.com/diallo100x/instrument-dna-web/actions/runs/40214147232)
+  passed on `adbca7587a689579aec39f87452054b7baf1d1d5`: all eight factory sounds,
+  all guitar layers, pickup controls, saved controls/tuning/glide, continuous
+  legato voice reuse, WAV download and reset. Existing source import, analysis,
+  audition, source fitting, comparison round trips and synthetic MIDI passed;
+  no page/console errors were reported.
+- [Native acceptance](https://github.com/diallo100x/instrument-dna-web/actions/runs/40213774878)
+  passed on `5a46fc7d6f48592e1c91bdd7292d3ac627e005fb`: Apple AU tests, all eight
+  factory renders, new parameter/host-state recall, native extraction, simulator
+  and Release device builds, 15.4 floor in both bundles, editor/fitter smoke tests
+  and actual remote AUv3 editor/MIDI/audio hosting. Later changes affect only web
+  dependency caches, browser instrumentation and documentation.
+- The first browser acceptance meter observed a disconnected old voice rather
+  than the new shared room bus. Its routing was corrected; DSP/model output tests
+  and the corrected live browser checks passed. Dependency and factory URLs are
+  versioned together to avoid stale validators/glide code or old cached presets.
+- Actual iPadOS 15.4.1 hardware, Koala compatibility and subjective realism still
+  require device/listening acceptance. A clean compile is not a Koala fix.
+
+Commits: `71f9cd2` (DSP/model/controls), `5a46fc7` (editors/audition export),
+`adbca75` (browser output metering and dependency/factory cache synchronization).
