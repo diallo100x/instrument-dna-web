@@ -16,3 +16,8 @@ It adds authored neck/bridge/piezo profiles, harmonic phases, delayed vibrato,
 continuous web legato, slide audition, body texture, room and web WAV audition
 export. A separate Original factory preset preserves the first Scalar Guitar.
 See [controls, limits and completed acceptance](docs/scalar-guitar.md).
+
+Web **0.8.2** adds Compatibility audio and Recover instrument audio for sessions
+where the direct test tone works but the live model is silent. It plays rendered
+notes from the same model through an independent output path. See
+[recovery behavior and limits](docs/web-audio-recovery.md). Native remains 0.4.1.

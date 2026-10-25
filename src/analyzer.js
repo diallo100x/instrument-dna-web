@@ -1,6 +1,6 @@
-import {clamp,midiName,param,buildHierarchy} from './dna.js?v=0.8.1';
-import {detectStrikes,strikeEnd} from './struck.js?v=0.8.1';
-import {estimatePolyphonicPitches} from './polyphonic.js?v=0.8.1';
+import {clamp,midiName,param,buildHierarchy} from './dna.js?v=0.8.2';
+import {detectStrikes,strikeEnd} from './struck.js?v=0.8.2';
+import {estimatePolyphonicPitches} from './polyphonic.js?v=0.8.2';
 export function estimatePitch(a,p,n,sr,maxHz=1800){let best=0,score=0,min=Math.floor(sr/maxHz),max=Math.min(Math.floor(sr/55),n/2),peaks=[];for(let lag=min;lag<=max;lag++){let c=0,e1=0,e2=0;for(let i=0;i<n-lag;i+=2){let x=a[p+i],y=a[p+i+lag];c+=x*y;e1+=x*x;e2+=y*y}let z=c/Math.sqrt(e1*e2+1e-12);peaks.push([lag,z]);if(z>score){score=z;best=lag}}let first=peaks.find(([lag,z],i)=>i>0&&i<peaks.length-1&&z>.55&&z>=score*.98&&z>=peaks[i-1][1]&&z>=peaks[i+1][1]);return {hz:score>.55?sr/(first?.[0]??best):0,confidence:clamp((score-.55)/.45)}}
 const rms=(a,p,n)=>Math.sqrt(Array.from({length:n},(_,i)=>(a[p+i]||0)**2).reduce((x,y)=>x+y,0)/n);
 export function measureHarmonics(a,s,e,sr,hz){

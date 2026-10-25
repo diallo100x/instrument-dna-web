@@ -6,7 +6,7 @@ const page=await browser.newPage({viewport:{width:1100,height:820},acceptDownloa
 const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR:',e.message);});page.on('console',m=>{if(m.type()==='error'){errors.push(m.text());console.error('BROWSER ERROR:',m.text());}});
 await page.addInitScript(()=>{
  let lastAnalyser=null,room=null;
- Object.defineProperty(window,'__testAnalyser',{get(){return !document.querySelector('#guitarPanel')?.hidden&&room?.__meter?room.__meter:lastAnalyser;},set(value){lastAnalyser=value;}});
+ Object.defineProperty(window,'__testAnalyser',{get(){return !document.querySelector('#compatAudio')?.checked&&!document.querySelector('#guitarPanel')?.hidden&&room?.__meter?room.__meter:lastAnalyser;},set(value){lastAnalyser=value;}});
  const input={onmidimessage:null};window.__testMidi=input;Object.defineProperty(navigator,'requestMIDIAccess',{value:async()=>({inputs:new Map([['test',input]]),onstatechange:null})});
  const OriginalWorklet=window.AudioWorkletNode;window.AudioWorkletNode=new Proxy(OriginalWorklet,{construct(target,args){const voice=new target(...args);if(args[1]==='instrument-dna-guitar-room')room=voice;else window.__testWorklet=voice;return voice;}});
  const Native=window.AudioContext;window.AudioContext=new Proxy(Native,{construct(target,args){const ctx=new target(...args);window.__testContext=ctx;return ctx;}});
@@ -59,6 +59,9 @@ await page.selectOption('#voiceMode','legato');await page.selectOption('#articul
 await page.evaluate(()=>{window.__testMidi.onmidimessage({data:new Uint8Array([128,64,0])});window.__testMidi.onmidimessage({data:new Uint8Array([128,60,0])});});await page.click('#guitarStop');
 await page.locator('#guitarExportSlide').check();const wavSave=page.waitForEvent('download');await page.click('#guitarWav');const wavFile=await (await wavSave).path(),guitarWav=await fs.readFile(wavFile);assert.equal(guitarWav.toString('ascii',0,4),'RIFF');assert.equal(guitarWav.readUInt32LE(24),44100);assert.equal(guitarWav.length,44+44100*5*2);assert(guitarWav.subarray(44).some(x=>x!==0));
 await page.click('#guitarReset');assert.equal(await page.inputValue('#guitar_pickup'),'1');assert.equal(await page.inputValue('#guitar_room'),'0.15');
+// Explicit recovery must bypass all live worklets and still play the actual model.
+await page.click('#recoverAudio');await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>document.querySelector('#audioStatus').dataset.engine),'buffer');assert(await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}), 'Compatibility recovery silent');
+await page.click('#guitarSlide');await page.waitForTimeout(100);assert.equal(await page.evaluate(()=>document.querySelector('#audioStatus').dataset.engine),'buffer');await page.click('#guitarStop');await page.locator('#compatAudio').uncheck();
 // Save/load audio-free physical edits through the existing Reflection workflow.
 await page.selectOption('#factoryPreset','marimba');await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Marimba'));
 await page.locator('[aria-label="Damping"]').evaluate(e=>{e.value='0.81';e.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -86,4 +89,10 @@ for(const kind of ['modal','waveguide']){
 }
 const hybridSave=page.waitForEvent('download');await page.click('#saveComparison');const hybridFile=await (await hybridSave).path();await page.locator('#import').setInputFiles(hybridFile);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Original slices retained'));assert.equal(await page.inputValue('#mode'),'HybridOriginal');
 await page.screenshot({path:'physical-browser.png',fullPage:true});
-assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, eight live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');
+assert.equal(errors.length,0,errors.join('\n'));
+// No AudioWorklet module: the loaded model must still produce audible notes.
+const fallback=await browser.newPage();const fallbackErrors=[];fallback.on('pageerror',e=>fallbackErrors.push(e.message));
+await fallback.addInitScript(()=>{const connect=AudioNode.prototype.connect;AudioNode.prototype.connect=function(destination,...args){if(destination instanceof AudioDestinationNode){const meter=this.context.createAnalyser();meter.fftSize=2048;connect.call(this,meter);connect.call(meter,destination,...args);window.__fallbackMeter=meter;return destination;}return connect.call(this,destination,...args);};});
+await fallback.route('**/src/physical-worklet.js*',route=>route.fulfill({status:200,contentType:'application/javascript',body:'throw new Error("Simulated unavailable worklet");'}));
+await fallback.goto('http://127.0.0.1:8000/?preset=scalar-guitar');await fallback.waitForFunction(()=>!document.querySelector('#guitarPanel').hidden&&!document.querySelector('#loadFactory').disabled);await fallback.click('#guitarPluck');await fallback.waitForTimeout(180);
+assert.equal(await fallback.evaluate(()=>document.querySelector('#audioStatus').dataset.engine),'buffer');assert(await fallback.evaluate(()=>{const a=new Float32Array(window.__fallbackMeter.fftSize);window.__fallbackMeter.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.00001);}), 'No-worklet model fallback silent');assert.equal(fallbackErrors.filter(e=>!e.includes('Simulated unavailable worklet')).length,0,fallbackErrors.join('\n'));await fallback.close();await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, eight live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');

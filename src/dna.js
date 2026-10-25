@@ -1,6 +1,6 @@
-import {validateScalarControls} from './scalar-controls.js?v=0.8.1';
-import {validatePhysicalModel} from './physical.js?v=0.8.1';
-import {suggestedModelName} from './model-name.js?v=0.8.1';
+import {validateScalarControls} from './scalar-controls.js?v=0.8.2';
+import {validatePhysicalModel} from './physical.js?v=0.8.2';
+import {suggestedModelName} from './model-name.js?v=0.8.2';
 export const VERSION='0.6.0';
 export const DENSITIES=[1,3,6,12];
 export const MACROS=['Attack','Body','Brightness','Harmonics','Noise','Resonance','Dynamics','Articulation','Movement','Drive'];

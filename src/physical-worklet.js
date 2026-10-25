@@ -1,5 +1,5 @@
-import {GuitarRoom} from './scalar-controls.js?v=0.8.1';
-import {PhysicalVoice} from './physical.js?v=0.8.1';
+import {GuitarRoom} from './scalar-controls.js?v=0.8.2';
+import {PhysicalVoice} from './physical.js?v=0.8.2';
 class PhysicalProcessor extends AudioWorkletProcessor {
  static get parameterDescriptors(){return ['frequency','velocity','hardness','position','damping','noise','richness','body','drive','brightness','attack','movement','midi','articulation','trillRate','trillInterval','pickup','vibratoDepth','vibratoRate','bodyTexture'].map(name=>({name,defaultValue:name==='pickup'||name==='vibratoDepth'||name==='bodyTexture'?0:name==='vibratoRate'?5.2:name==='midi'?69:name==='articulation'?0:name==='trillRate'?7:name==='trillInterval'?1:name==='frequency'?440:name==='velocity'?.8:name==='attack'?.005:name==='movement'?0:.5,automationRate:name==='frequency'?'a-rate':'k-rate'}));}
  constructor(options){super();this.voice=new PhysicalVoice(options.processorOptions.model,sampleRate);this.running=false;this.release=null;this.end=null;this.envelope=0;this.finished=false;this.port.onmessage=e=>{if(e.data.type==='start')this.running=true;if(e.data.type==='stop')this.end=e.data.time;};}

@@ -1,4 +1,4 @@
-import {PICKUP_PROFILES,GuitarRoom} from './scalar-controls.js?v=0.8.1';
+import {PICKUP_PROFILES,GuitarRoom} from './scalar-controls.js?v=0.8.2';
 // Independently authored physical DSP. See docs/physical-modeling.md for provenance.
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 export function validatePhysicalModel(m){

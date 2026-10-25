@@ -1,4 +1,4 @@
-import {clamp} from './dna.js?v=0.8.1';
+import {clamp} from './dna.js?v=0.8.2';
 
 // Keep the recorded range visible in the UI. A distant note is synthesized
 // instead of applying an extreme pitch shift to a short metallic recording.

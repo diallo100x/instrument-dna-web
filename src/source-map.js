@@ -1,4 +1,4 @@
-import {selectAnchors} from './analyzer.js?v=0.8.1';
+import {selectAnchors} from './analyzer.js?v=0.8.2';
 
 // Sustain takes precedence for the ordinary keyboard when multiple sources
 // supply the same pitch. Articulation layers retain their own candidates.
