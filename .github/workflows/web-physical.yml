@@ -8,6 +8,10 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -16,13 +20,13 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm install --no-save playwright
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Live browser audio and preset acceptance
         run: |
           python3 -m http.server 8000 > /tmp/dna-server.log 2>&1 &
-          node tests/browser/physical.mjs
+          BROWSER=${{ matrix.browser }} node tests/browser/physical.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: physical-browser
+          name: physical-browser-${{ matrix.browser }}
           path: physical-browser.png

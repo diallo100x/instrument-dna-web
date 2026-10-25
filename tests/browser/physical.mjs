@@ -1,9 +1,9 @@
-import {chromium} from 'playwright';
+import {chromium,webkit} from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-const browser=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
+const browser=await (process.env.BROWSER==='webkit'?webkit:chromium).launch(process.env.BROWSER==='webkit'?{}:{args:['--autoplay-policy=no-user-gesture-required']});
 const page=await browser.newPage({viewport:{width:1100,height:820},acceptDownloads:true});
-const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR:',e.message);});page.on('console',m=>{if(m.type()==='error'){errors.push(m.text());console.error('BROWSER ERROR:',m.text());}});
 await page.addInitScript(()=>{
  let lastAnalyser=null,room=null;
  Object.defineProperty(window,'__testAnalyser',{get(){return !document.querySelector('#guitarPanel')?.hidden&&room?.__meter?room.__meter:lastAnalyser;},set(value){lastAnalyser=value;}});
@@ -23,7 +23,7 @@ for(const id of ids){
 
  const box=await key.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
  await page.waitForTimeout(160);
- const power=await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.reduce((sum,x)=>sum+x*x,0)/a.length;});assert(power>1e-10,`${id} silent (${power})`);
+ const power=await page.evaluate(()=>{const a=new Float32Array(window.__testAnalyser.fftSize);window.__testAnalyser.getFloatTimeDomainData(a);return a.reduce((sum,x)=>sum+x*x,0)/a.length;});assert(power>1e-10,`${id} silent (${power}) · ${await page.textContent('#audioStatus')} · ${await page.textContent('#detail')} · ${errors.join('; ')}`);
  await page.mouse.up();await page.waitForTimeout(160);
 }
 // Exercise the existing Web MIDI input handler (synthetic port; no physical hardware).
