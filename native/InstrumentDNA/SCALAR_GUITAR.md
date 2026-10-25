@@ -72,3 +72,13 @@ For listening: load Scalar Guitar, compare F#4 at 440/432, play E2–E6, compare
 soft/hard velocities, Palm mute/Sustain, increase Drive and try Mono/Legato. Save a
 named Reflection at 432, reload it and reopen an AU host session. Compare the same
 phrase against your preferred source guitar before adjusting its authored model.
+
+## Completed acceptance — October 25, 2026
+
+- All 48 Node tests passed; portable native DSP/model tests passed with ASan/UBSan.
+- [Browser acceptance](https://github.com/diallo100x/instrument-dna-web/actions/runs/40209969265): passed on `c5d20f53526a8ca22bf8040a99939590a759bdff`. All seven factories produced live AudioWorklet output. Scalar tuning/layers and saved tuning/layer round trip passed, along with source import, analysis, preview, physical fitting, comparisons and synthetic MIDI. No page/console errors.
+- [Native acceptance](https://github.com/diallo100x/instrument-dna-web/actions/runs/40209637373): passed on `88fae8aae4f5843b919420204e1575ce89bd73e8`. Apple AU integration, native extraction, simulator/Release device compilation, minimum OS 15.4 in both bundles, editor/fitting smoke tests and actual remote AUv3 editor/MIDI/audio hosting passed. Later changes only affect web loading, web tests and documentation.
+- The first browser run caught a repeat-factory-load race. The loader now disables repeat loading until installation finishes, and the test waits for completion rather than accepting stale success text. The corrected run passed.
+- Real iPadOS 15.4.1 hardware, Koala and subjective guitar realism remain unverified.
+
+Implementation commits: `6c170de` (engine/model/tuning), `88fae8a` (editors/layers), `c5d20f5` (factory-load synchronization and browser checks).
