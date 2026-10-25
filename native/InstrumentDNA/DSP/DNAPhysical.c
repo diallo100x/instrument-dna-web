@@ -9,7 +9,7 @@ int dna_physical_valid(const DNAPhysicalModel*m){
  if(!isfinite(m->hardness)||m->hardness<0||m->hardness>1||!isfinite(m->position)||m->position<0||m->position>1||!isfinite(m->noise)||m->noise<0||m->noise>1||!isfinite(m->decay)||m->decay<.05||m->decay>15)return 0;
  if(m->loss_rate!=0&&(!isfinite(m->loss_rate)||m->loss_rate<8000||m->loss_rate>192000))return 0;
  if(m->waveguide_tone!=0&&(!isfinite(m->waveguide_tone)||m->waveguide_tone<.05f||m->waveguide_tone>.98f))return 0;
- for(int i=0;i<m->count;i++)if(!isfinite(m->ratios[i])||m->ratios[i]<.25||m->ratios[i]>64||!isfinite(m->gains[i])||m->gains[i]<0||m->gains[i]>1||!isfinite(m->t60[i])||m->t60[i]<.02||m->t60[i]>15)return 0;
+ for(int i=0;i<m->count;i++)if(!isfinite(m->ratios[i])||m->ratios[i]<.25||m->ratios[i]>64||!isfinite(m->gains[i])||m->gains[i]<0||m->gains[i]>1||!isfinite(m->t60[i])||m->t60[i]<.02||m->t60[i]>15||!isfinite(m->phases[i])||fabsf(m->phases[i])>PI+1e-6)return 0;
  return 1;
 }
 float dna_physical_tick(DNAPhysicalState*s,const DNAPhysicalModel*m,double rate,float hz,DNAPhysicalControls c){
@@ -20,22 +20,27 @@ float dna_physical_tick(DNAPhysicalState*s,const DNAPhysicalModel*m,double rate,
  s->exciter+=coefficient*(noise-s->exciter);
  float output=0;
  if(m->kind==2){
+  static const float profiles[3][10]={{1,.75,.4,.35,.12,.08,.02,.01,0,0},{.45,.68,.82,.95,.70,.62,.48,.35,.15,.10},{.85,.70,.65,.60,.55,.50,.45,.40,.35,.30}};
+  int profile=(int)roundf(bound(c.pickup,0,3));
+  if(s->frame==0)for(int i=0;i<m->count;i++)s->phase[i]=m->phases[i];
   float midi=bound(c.midi,40,88),reg=(midi-66)/26;int role=(int)roundf(c.articulation),muted=role==2,soft=role==4,harmonic=role==5;
   float decayScale=(1-reg*.25f)*(muted?.15f:1)*(1.5f-damping);
   float bite=bound(.35f+velocity*.65f+(hardness-.5f)*.5f+(richness-.5f)*.4f,.12f,1.5f)*(soft?.6f:1)*(role==3?1.2f:1),normal=0;
   for(int i=0;i<m->count;i++){
-   float h=m->ratios[i],b=.000035f*(1-bound((midi-40)/48,0,1)),frequency=hz*h*sqrtf((1+b*h*h)/(1+b));
+   float h=m->ratios[i],b=(profile?.00018f:.000035f)*(1-bound((midi-40)/48,0,1)),frequency=hz*h*sqrtf((1+b*h*h)/(1+b));
    s->phase[i]=fmod(s->phase[i]+2*PI*frequency/rate,2*PI);
    if(frequency>=rate*.45)continue;
    float pickup=i==0?1:(.6f+.4f*fabsf(sinf((float)PI*position*h)))/(.6f+.4f*fabsf(sinf((float)PI*.25f*h)));
-   float spectral=powf(bite,log2f(fmaxf(1,h)))*powf(h,reg*.12f),gain=m->gains[i]*pickup*spectral*(harmonic&&i==0?.06f:1);
-   output+=(float)sin(s->phase[i])*gain*expf(-6.907755f*(float)s->age/(m->t60[i]*decayScale));normal+=m->gains[i];
+   float spectral=powf(bite,log2f(fmaxf(1,h)))*powf(h,reg*.12f),baseGain=profile?(i<10?profiles[profile-1][i]:0):m->gains[i],gain=baseGain*pickup*spectral*(harmonic&&i==0?.06f:1);
+   output+=(float)sin(s->phase[i])*gain*expf(-6.907755f*(float)s->age/(m->t60[i]*decayScale));normal+=baseGain;
   }
   output/=fmaxf(1,normal);
-  output+=s->exciter*bound(c.noise,0,1)*(.015f+.08f*velocity)*expf(-(float)s->age/(soft?.008f:.018f));
-  s->body1+=(1-expf(-(float)(2*PI)*180/(float)rate))*(output-s->body1);
-  s->body2+=(1-expf(-(float)(2*PI)*3200/(float)rate))*(output-s->body2);
+  if(profile){float center=profile==2?3200:2200;s->pick_low+=(1-expf(-(float)(2*PI)*fminf(center*1.5f,(float)rate*.45f)/(float)rate))*(noise-s->pick_low);s->pick_high+=(1-expf(-(float)(2*PI)*center*.5f/(float)rate))*(noise-s->pick_high);output+=(s->pick_low-s->pick_high)*bound(c.noise,0,1)*(profile==3?.09f:.05f)*(.5f+.5f*velocity)*expf(-(float)s->age/.007f);}else output+=s->exciter*bound(c.noise,0,1)*(.015f+.08f*velocity)*expf(-(float)s->age/(soft?.008f:.018f));
+  s->body1+=(1-expf(-(float)(2*PI)*(profile?215:180)/(float)rate))*(output-s->body1);
+  float start=profile==3?12000:6000,end=profile==3?2500:700,toneHz=profile?start*powf(end/start,fminf(1,(float)s->age/1.8f)):3200;
+  s->body2+=(1-expf(-(float)(2*PI)*fminf(toneHz,(float)rate*.45f)/(float)rate))*(output-s->body2);
   output=s->body2+s->body1*.18f*bound(c.body,0,1);
+  float texture=bound(c.body_texture,0,1);if(texture>0){float bias=texture*.3f;output=(tanhf(output*(1+texture*2)+bias)-tanhf(bias))/(1+texture);s->body_dc+=(1-expf(-(float)(2*PI)*20/(float)rate))*(output-s->body_dc);output-=s->body_dc;}
   output*=1-expf(-(float)s->age/(soft?.008f:.002f));
  }else if(m->kind==1){
   // Fractional-delay Karplus–Strong loop; averaging loss is compensated in tuning.

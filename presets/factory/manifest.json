@@ -33,5 +33,10 @@
     "id": "scalar-guitar",
     "name": "DBAL · Scalar Guitar",
     "path": "presets/factory/scalar-guitar.json"
+  },
+  {
+    "id": "scalar-guitar-original",
+    "name": "DBAL · Scalar Guitar · Original",
+    "path": "presets/factory/scalar-guitar-original.json"
   }
 ]

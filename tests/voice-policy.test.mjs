@@ -17,7 +17,7 @@ test('legato glide converts semitone distance and caps transition time',()=>{
   assert.equal(transitionFrom(new Map([[72,{}]]),74),72);
   assert.ok(Math.abs(glideRatio(60,72)-.5)<1e-9);
   assert.equal(glideSeconds(70),.07);
-  assert.equal(glideSeconds(1000),.25);
+  assert.equal(glideSeconds(1000),1);assert.equal(glideSeconds(5000),2);
 });
 test('older Reflections remain polyphonic and voice settings round trip',()=>{
   const old=emptyReflection();delete old.performance.voiceMode;delete old.performance.glideMs;

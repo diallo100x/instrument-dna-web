@@ -163,6 +163,13 @@ final class InstrumentModel: ObservableObject {
         let document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         return NoteMap.entries(document)
     }
+    func auditionGuitar(slide:Bool) {
+        stopPreview()
+        let midi=Int(value(40)),layer=Int(value(20))
+        if slide {unit.previewSlide(midi,semitones:value(39),layer:layer)}else{unit.previewNote(midi,layer:layer,source:false,down:true)}
+        let generation=previewGeneration
+        DispatchQueue.main.asyncAfter(deadline:.now()+4){[weak self] in guard let self=self,self.previewGeneration==generation else{return};self.stopPreview()}
+    }
     private var previewGeneration = 0
     func stopPreview() {
         previewGeneration += 1
@@ -204,7 +211,7 @@ final class InstrumentModel: ObservableObject {
         performance["selectedArticulation"] = ["sustain","trill","staccato","accent","breathy","alternate"][Int(value(20))]
         performance["velocityTrill"] = value(25) > 0.5;performance["trillThreshold"] = value(26);performance["trillRateHz"] = value(23);performance["trillInterval"] = value(24);performance["noteLengthSeconds"] = value(27)
         dna["performance"] = performance;dna["era"] = ["recording":["none","vintage","tape"][Int(value(21))],"amount":value(22)]
-        performance["referenceHz"]=value(33);dna["performance"]=performance;var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};dna["extensions"] = ext
+        performance["referenceHz"]=value(33);dna["performance"]=performance;var ext = dna["extensions"] as? [String:Any] ?? [:];ext["nativePerformance"] = ["bendRange":value(17),"modulation":value(16),"engineMode":value(28),"volume":value(14)];if ext["physicalModel"] != nil {ext["physicalControls"]=["hardness":value(29),"position":value(30),"damping":value(31),"noise":value(32)]};if ext["scalarGuitar"] != nil {ext["scalarControls"]=["pickup":value(34),"vibratoDepth":value(35),"vibratoRate":value(36),"bodyTexture":value(37),"room":value(38),"slideFrom":value(39),"auditionMidi":value(40)]};dna["extensions"] = ext
         if includeAudio && document["format"] as? String != "instrument-dna-playable-comparison" { throw ModelError("This Reflection contains no source slices. Save it as a Reflection.") }
         if includeAudio && document["format"] as? String == "instrument-dna-playable-comparison" { document["reflection"] = dna;document["hybridMode"] = value(28)==4 ? "Physical" : value(28)==3 ? "Mallet" : "HybridOriginal";return try JSONSerialization.data(withJSONObject:document,options:.sortedKeys) }
         return try JSONSerialization.data(withJSONObject:dna,options:.sortedKeys)

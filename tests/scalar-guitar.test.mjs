@@ -9,7 +9,7 @@ const power=(a,from=0,to=a.length)=>a.slice(from,to).reduce((s,x)=>s+x*x,0)/(to-
 function component(a,hz,from=.04,to=.2,sr=24000){let re=0,im=0;for(let i=Math.floor(from*sr);i<to*sr;i++){re+=a[i]*Math.cos(2*Math.PI*hz*i/sr);im+=a[i]*Math.sin(2*Math.PI*hz*i/sr);}return Math.hypot(re,im);}
 function peak(a,expected){let best=-1,at=0;for(let f=expected-2;f<=expected+2;f+=.1){let v=component(a,f,.08,.7);if(v>best){best=v;at=f;}}return at;}
 test('Scalar Guitar keeps the supplied harmonic recipe and generated, audio-free sparse layers',()=>{
- assert.deepEqual(model.modes.map(m=>m.gain),[1,.5,.6,.3,.4,.1,.25,.15]);
+ assert.deepEqual(model.modes.slice(0,8).map(m=>m.gain),[1,.5,.6,.3,.4,.1,.25,.15]);
  assert.deepEqual(preset.capture.range,[40,88]);assert(!preset.anchors.some(a=>a.midi===66));
  assert.deepEqual(modelAt(preset,66).anchors,[64,68]);
  assert(preset.anchors.every(a=>a.parameters.f0.analyzed===null&&a.confidence.overall===0));
@@ -17,7 +17,7 @@ test('Scalar Guitar keeps the supplied harmonic recipe and generated, audio-free
  const copy=importReflection(JSON.parse(JSON.stringify(serializable(preset))));assert.deepEqual(copy,preset);assert.equal(copy.sampleSlots.length,0);
 });
 test('A4 and inferred F#4 tune to both references without changing harmonic DNA',()=>{
- for(const referenceHz of [432,440])for(const midi of [66,69]){
+ for(const referenceHz of [432,435,440,444])for(const midi of [66,69]){
   const hz=referenceHz*2**((midi-69)/12),out=renderPhysical(model,24000,midi,100,1,{referenceHz,noise:0});
   assert(Math.abs(peak(out,hz)-hz)<.3);
  }
@@ -27,7 +27,7 @@ test('A4 and inferred F#4 tune to both references without changing harmonic DNA'
  for(const bad of [0,433,NaN,'432']){const invalid=structuredClone(preset);invalid.performance.referenceHz=bad;assert.throws(()=>importReflection(invalid));}
 });
 test('every guitar key and layer renders finite bounded sound at 432 and 440',()=>{
- for(const referenceHz of [432,440])for(let midi=40;midi<=88;midi++)for(const articulation of [0,2,3,4,5]){
+ for(const referenceHz of [432,435,440,444])for(let midi=40;midi<=88;midi++)for(const articulation of [0,2,3,4,5]){
   const out=renderPhysical(model,16000,midi,100,.12,{referenceHz,articulation});assert(out.every(x=>Number.isFinite(x)&&Math.abs(x)<=1));assert(power(out)>1e-9,`${midi} ${articulation}`);
  }
 });

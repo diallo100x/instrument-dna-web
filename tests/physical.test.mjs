@@ -7,8 +7,8 @@ const catalog=JSON.parse(fs.readFileSync('presets/factory/manifest.json'));
 const preset=id=>JSON.parse(fs.readFileSync(`presets/factory/${id}.json`));
 const power=(a,start=0,end=a.length)=>a.slice(start,end).reduce((sum,x)=>sum+x*x,0)/(end-start);
 function component(a,hz,from=.04,to=.2,sr=24000){let re=0,im=0;const begin=Math.round(from*sr),end=Math.round(to*sr);for(let i=begin;i<end;i++){re+=a[i]*Math.cos(2*Math.PI*hz*i/sr);im+=a[i]*Math.sin(2*Math.PI*hz*i/sr);}return Math.hypot(re,im)/(end-begin);}
-test('seven portable authored factory models roundtrip without embedded audio or invented measurements',()=>{
- assert.equal(catalog.length,7);
+test('eight portable authored factory models roundtrip without embedded audio or invented measurements',()=>{
+ assert.equal(catalog.length,8);
  for(const entry of catalog){const dna=importReflection(preset(entry.id)),m=dna.extensions.physicalModel;validatePhysicalModel(m);const copy=JSON.parse(JSON.stringify(serializable(dna)));assert.deepEqual(copy.extensions,m?dna.extensions:{});assert(dna.anchors.every(a=>a.parameters.f0.analyzed===null&&a.confidence.overall===0));assert.equal(dna.sampleSlots.length,0);assert.equal(fs.readFileSync(entry.path,'utf8'),fs.readFileSync(`native/InstrumentDNA/Resources/${entry.id}.json`,'utf8'));}
 });
 test('all physical families produce finite bounded audible output across low/high registers',()=>{
