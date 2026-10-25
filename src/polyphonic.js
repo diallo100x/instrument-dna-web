@@ -1,4 +1,4 @@
-import {clamp} from './dna.js';
+import {clamp} from './dna.js?v=0.8.1';
 
 function spectrum(samples,start,size){
   const re=new Float64Array(size),im=new Float64Array(size);

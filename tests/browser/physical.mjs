@@ -5,11 +5,13 @@ const browser=await chromium.launch({args:['--autoplay-policy=no-user-gesture-re
 const page=await browser.newPage({viewport:{width:1100,height:820},acceptDownloads:true});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 await page.addInitScript(()=>{
+ let lastAnalyser=null,room=null;
+ Object.defineProperty(window,'__testAnalyser',{get(){return !document.querySelector('#guitarPanel')?.hidden&&room?.__meter?room.__meter:lastAnalyser;},set(value){lastAnalyser=value;}});
  const input={onmidimessage:null};window.__testMidi=input;Object.defineProperty(navigator,'requestMIDIAccess',{value:async()=>({inputs:new Map([['test',input]]),onstatechange:null})});
- const OriginalWorklet=window.AudioWorkletNode;window.AudioWorkletNode=new Proxy(OriginalWorklet,{construct(target,args){const voice=new target(...args);window.__testWorklet=voice;return voice;}});
+ const OriginalWorklet=window.AudioWorkletNode;window.AudioWorkletNode=new Proxy(OriginalWorklet,{construct(target,args){const voice=new target(...args);if(args[1]==='instrument-dna-guitar-room')room=voice;else window.__testWorklet=voice;return voice;}});
  const Native=window.AudioContext;window.AudioContext=new Proxy(Native,{construct(target,args){const ctx=new target(...args);window.__testContext=ctx;return ctx;}});
  const connect=AudioNode.prototype.connect;AudioNode.prototype.connect=function(destination,...args){
-  if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();analyser.fftSize=2048;connect.call(this,analyser);connect.call(analyser,destination,...args);window.__testAnalyser=analyser;return destination;}return connect.call(this,destination,...args);
+  if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();analyser.fftSize=2048;this.__meter=analyser;connect.call(this,analyser);connect.call(analyser,destination,...args);window.__testAnalyser=analyser;return destination;}return connect.call(this,destination,...args);
  };
 });
 await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===9);
