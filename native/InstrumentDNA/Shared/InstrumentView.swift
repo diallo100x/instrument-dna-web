@@ -12,8 +12,9 @@ struct InstrumentView: View {
     @State private var exporting=false
     @State private var document=PresetDocument(data:Data())
     @State private var exportName="Instrument DNA"
+    private var isScalar:Bool{(model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] != nil}
     private let macros=["Attack","Body","Brightness","Harmonics","Noise","Resonance","Dynamics","Articulation","Movement","Drive"]
-    private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Era DNA","Physical model","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
+    private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Guitar performance","Era DNA","Physical model","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
     var body:some View {
         GeometryReader { geometry in
             if geometry.size.height<380 { ScrollView { layout(controlHeight:220,surfaceHeight:180) } }
@@ -21,6 +22,8 @@ struct InstrumentView: View {
         }
         .background(Color(red:0.06,green:0.1,blue:0.12)).foregroundColor(.white)
         .preferredColorScheme(.dark)
+        .onAppear{if isScalar {firstNote=40}}
+        .onChange(of:isScalar){value in if value {firstNote=40}}
         .fileImporter(isPresented:$importing,allowedContentTypes:[.json,.audio],allowsMultipleSelection:false) { result in
             switch result {case .success(let urls):if let url=urls.first {model.importFile(url)};case .failure(let error):model.status=error.localizedDescription}
         }
@@ -64,7 +67,7 @@ struct InstrumentView: View {
         case "Behavior XY": XYControl(model:model,x:12,y:13,left:"Soft",right:"Aggressive",bottom:"Clean",top:"Organic");Text("Excitation and drive horizontally; noise contribution vertically.").font(.caption)
         case "Performance · articulation layers":
             enumPicker("Voice behavior",id:18,labels:["Poly","Mono","Legato"])
-            ParameterSlider(model:model,id:19,title:"Legato glide · ms",range:10...250)
+            ParameterSlider(model:model,id:19,title:"Legato glide · ms",range:10...2000)
             enumPicker("Articulation layer",id:20,labels:((model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] != nil ? ["Sustain / picked","Trill","Palm mute","Accent / hard pick","Soft / finger","Harmonic"] : ["Sustain","Trill","Staccato","Accent","Breathy","Alternate"]))
             Toggle("High velocity selects Trill",isOn:Binding(get:{model.value(25)>0.5},set:{model.set(25,$0 ? 1:0)}))
             ParameterSlider(model:model,id:26,title:"Trill velocity threshold",range:1...127)
@@ -104,17 +107,39 @@ struct InstrumentView: View {
             if model.noteEntries.isEmpty {Text("Import a playable comparison from the web app to review its detected notes. Audio-free Reflections provide model previews only.")}
             ForEach(model.noteEntries){entry in NoteReviewRow(model:model,entry:entry)}
         case "Main · musical controls":
-            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("440 Hz").tag(440);Text("432 Hz").tag(432)}.pickerStyle(.segmented)
+            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("440 Hz").tag(440);Text("432 Hz").tag(432);Text("435 Hz").tag(435);Text("444 Hz").tag(444)}.pickerStyle(.segmented)
             LazyVGrid(columns:[GridItem(.adaptive(minimum:180))],spacing:18){ForEach(macros.indices,id:\.self){i in ParameterSlider(model:model,id:i,title:macros[i])}}
             Text("Each macro also has its own page with a baseline reset. Use the side arrows or Module menu to reach every control.").font(.caption)
+        case "Guitar performance":
+            if (model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] != nil {
+                Text("E2–E6 · generated articulations. Pickup profiles are authored tone settings.").font(.caption)
+                enumPicker("Pickup profile",id:34,labels:["Original recipe","Neck","Bridge","Piezo"])
+                ParameterSlider(model:model,id:35,title:"Hand vibrato depth · semitones")
+                ParameterSlider(model:model,id:36,title:"Vibrato rate · Hz",range:0.5...9)
+                ParameterSlider(model:model,id:19,title:"Slide / legato time · ms",range:10...2000)
+                ParameterSlider(model:model,id:37,title:"Asymmetric body texture")
+                ParameterSlider(model:model,id:38,title:"Room amount")
+                ParameterSlider(model:model,id:39,title:"Slide starts · semitones from target",range:-12...12)
+                Stepper("Audition: \(noteName(Int(model.value(40))))",value:Binding(get:{Int(model.value(40))},set:{model.set(40,Float($0))}),in:40...88)
+                HStack{Button("Pluck"){model.auditionGuitar(slide:false)};Button("Finger slide"){model.auditionGuitar(slide:true)};Button("Stop"){model.stopPreview()}}
+                ParameterSlider(model:model,id:9,title:"Instrument drive")
+                Button("Reset guitar controls to model baseline"){
+                    let guitar=((model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] as? [String:Any])?["defaultControls"] as? [String:NSNumber] ?? [:]
+                    let keys=["pickup","vibratoDepth","vibratoRate","bodyTexture","room","slideFrom","auditionMidi"],fallback:[Float]=[0,0,5.2,0,0,-2,66]
+                    for (i,key) in keys.enumerated(){model.set(34+i,guitar[key]?.floatValue ?? fallback[i])}
+                    let baseline=((model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] as? [String:Any])?["defaultGlideMs"] as? NSNumber
+                    model.set(19,baseline?.floatValue ?? 70)
+                }
+                Text("Choose Sustain, Palm mute, Hard pick, Soft/finger, Harmonic or Trill on Performance. Global bend and modulation remain on Output; finger slides on the touch surface remain independent.").font(.caption)
+            }else{Text("Load Scalar Guitar from Instrument map → Factory instruments to use this page.")}
         case "Era DNA":enumPicker("Recording Era",id:21,labels:["None","Vintage bandwidth","Warm bandwidth"]);ParameterSlider(model:model,id:22,title:"Era amount");Text("A separate adjustable bandwidth layer. These are illustrative presets, not measured historical recording chains.").font(.caption)
         case "Output":
-            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("A4 = 440 Hz").tag(440);Text("A4 = 432 Hz").tag(432)}.pickerStyle(.segmented)
+            Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("A4 = 440 Hz").tag(440);Text("A4 = 432 Hz").tag(432);Text("435 Hz").tag(435);Text("444 Hz").tag(444)}.pickerStyle(.segmented)
             ParameterSlider(model:model,id:14,title:"Master volume")
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.4.0 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.4.1 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}

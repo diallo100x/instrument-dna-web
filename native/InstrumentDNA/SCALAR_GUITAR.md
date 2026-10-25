@@ -82,3 +82,45 @@ phrase against your preferred source guitar before adjusting its authored model.
 - Real iPadOS 15.4.1 hardware, Koala and subjective guitar realism remain unverified.
 
 Implementation commits: `6c170de` (engine/model/tuning), `88fae8a` (editors/layers), `c5d20f5` (factory-load synchronization and browser checks).
+
+## Performance update — web 0.8.1 / native 0.4.1 build 8
+
+The supplied follow-up emulation contributes three ten-partial neck/bridge/piezo
+amplitude recipes and ten phase offsets. These are authored tone profiles; the
+snippet contains no FFT dataset or measured pickup response. The missing harmonic
+index array is defined as 1–10. `Scalar Guitar · Original` retains the previous
+factory voice, eight harmonics and default dry/unmodulated behavior.
+
+The updated Scalar Guitar adds a decaying pickup-dependent tone envelope, short
+band-shaped pick noise, phase offsets, delayed vibrato with depth in semitones and
+rate in Hz, and adjustable slides up to 2000 ms. Web Physical Scalar legato now
+retargets the existing voice rather than crossfading a fresh pick attack. Native
+legato already retains the voice; the new audition slide has a defined starting
+interval and arrival time. Slide starts are bounded to E2–E6. A real recorded
+hammer-on, pull-off, fret scrape or string-by-string fingering model is not claimed.
+
+A dedicated Guitar performance module exposes pickup, vibrato depth/rate, body
+texture, room amount, slide start and audition target. Existing Drive, velocity,
+articulation, bend and modulation controls remain active. Body texture uses bounded
+asymmetric saturation with DC removal. Body/pickup filter frequencies remain fixed;
+the example's extra oscillator at 1.5 × F0 is not presented as a learned body mode.
+The compact room is a shared post-instrument comb network with a decaying tail,
+not convolution or a measured studio. Raw source preview bypasses it. Stop/Panic
+can clear the room. Original source-sample stereo routing remains unchanged.
+
+Reference choices now include numeric A4=432, 435, 440 and 444 Hz without implied
+historical, scientific or therapeutic properties. Tuning uses the exact formula.
+New AU addresses 34–40 append pickup, vibrato depth/rate, body texture, room,
+slide start and audition MIDI. Addresses 0–33 stay stable. Tuning, controls and
+2000 ms glide persist in Reflections/host state; old models default to original
+pickup, zero added vibrato/body texture/room and a 5.2 Hz vibrato rate. Reset guitar
+controls restores the preset's authored controls and glide, preserving global
+reference tuning and unrelated macros. The iOS deployment floor stays at 15.4.
+
+The web Guitar module exports a five-second mono PCM WAV audition at 44.1 kHz,
+using the same voice/phase, pick, vibrato, slide, distortion and room algorithms as
+live web playback. Era processing is excluded and stated in the UI. This is a
+single-note audition export, not a MIDI-performance recorder. Native continues to
+export named DNA Reflections; direct native WAV bounce is not part of this patch.
+Saturation remains unoversampled and no measured cabinet, amp feedback, pickup
+magnetic field or acoustic body identification is claimed.

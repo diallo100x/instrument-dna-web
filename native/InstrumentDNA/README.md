@@ -105,3 +105,12 @@ Reflection export and AU host state preserve tuning. New AU address 33 is append
 previous addresses remain stable. This is a starting guitar design, not an analyzed
 recording or a claim of captured-guitar realism. See `SCALAR_GUITAR.md` for details.
 The iOS 15.4 minimum, including iPadOS 15.4.1, remains in both targets.
+
+### v0.4.1 · Scalar Guitar performance controls
+
+Load Scalar Guitar and open **Guitar performance** for pickup tone, delayed vibrato,
+slide timing/offset, body texture, room and target-note audition. Main/Output offer
+432/435/440/444 Hz reference choices. Original Scalar Guitar is a separate factory
+preset. Named Reflection and host state retain edits; AU addresses 34–40 are
+appended, and the iPadOS 15.4.1 deployment minimum is preserved. See
+`SCALAR_GUITAR.md` for behavior, provenance and limits.

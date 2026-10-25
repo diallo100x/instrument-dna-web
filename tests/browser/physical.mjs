@@ -12,8 +12,8 @@ await page.addInitScript(()=>{
   if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();analyser.fftSize=2048;connect.call(this,analyser);connect.call(analyser,destination,...args);window.__testAnalyser=analyser;return destination;}return connect.call(this,destination,...args);
  };
 });
-await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===8);
-const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar'];
+await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===9);
+const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar','scalar-guitar-original'];
 for(const id of ids){
  await page.selectOption('#factoryPreset',id);await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('authored physical model'));
  assert.equal(await page.inputValue('#mode'),'Physical');
@@ -44,6 +44,19 @@ await page.selectOption('#referenceHz','432');await page.selectOption('#articula
 const scalarDownload=page.waitForEvent('download');await page.click('#export');const scalarFile=await (await scalarDownload).path();const scalar=JSON.parse(await fs.readFile(scalarFile,'utf8'));
 assert.equal(scalar.performance.referenceHz,432);assert.equal(scalar.performance.selectedArticulation,'staccato');assert.equal(scalar.extensions.physicalModel.kind,'additive-string');
 await page.selectOption('#referenceHz','440');await page.locator('#import').setInputFiles(scalarFile);await page.waitForFunction(()=>document.querySelector('#referenceHz').value==='432');assert.equal(await page.inputValue('#articulation'),'staccato');
+// Updated guitar hardware controls, continuous legato and WAV use the actual live engine.
+for(const pickup of ['1','2','3']){
+ await page.selectOption('#guitar_pickup',pickup);await page.click('#guitarPluck');await page.waitForTimeout(100);
+ assert.equal(await page.evaluate(()=>window.__testWorklet.parameters.get('pickup').value),Number(pickup));await page.click('#guitarStop');
+}
+for(const [key,value]of [['vibratoDepth','.32'],['vibratoRate','6.2'],['bodyTexture','.67'],['room','.6'],['slideFrom','-5'],['auditionMidi','69']])await page.locator('#guitar_'+key).evaluate((e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));},value);
+await page.locator('#glideMs').fill('1200');await page.locator('#glideMs').dispatchEvent('input');await page.selectOption('#referenceHz','444');
+const controlsSave=page.waitForEvent('download');await page.click('#export');const controlsFile=await (await controlsSave).path();const updated=JSON.parse(await fs.readFile(controlsFile,'utf8'));assert.equal(updated.performance.referenceHz,444);assert.equal(updated.performance.glideMs,1200);assert.equal(updated.extensions.scalarControls.room,.6);assert.equal(updated.extensions.scalarControls.pickup,3);
+await page.locator('#import').setInputFiles(controlsFile);await page.waitForFunction(()=>document.querySelector('#guitar_room').value==='0.6');
+await page.selectOption('#voiceMode','legato');await page.selectOption('#articulation','sustain');await page.evaluate(()=>window.__testMidi.onmidimessage({data:new Uint8Array([144,60,100])}));await page.waitForTimeout(80);await page.evaluate(()=>window.__beforeSlide=window.__testWorklet);await page.evaluate(()=>window.__testMidi.onmidimessage({data:new Uint8Array([144,64,100])}));assert(await page.evaluate(()=>window.__beforeSlide===window.__testWorklet),'Legato retriggered the guitar voice');assert((await page.textContent('#detail')).includes('no attack retrigger'));
+await page.evaluate(()=>{window.__testMidi.onmidimessage({data:new Uint8Array([128,64,0])});window.__testMidi.onmidimessage({data:new Uint8Array([128,60,0])});});await page.click('#guitarStop');
+await page.locator('#guitarExportSlide').check();const wavSave=page.waitForEvent('download');await page.click('#guitarWav');const wavFile=await (await wavSave).path(),guitarWav=await fs.readFile(wavFile);assert.equal(guitarWav.toString('ascii',0,4),'RIFF');assert.equal(guitarWav.readUInt32LE(24),44100);assert.equal(guitarWav.length,44+44100*5*2);assert(guitarWav.subarray(44).some(x=>x!==0));
+await page.click('#guitarReset');assert.equal(await page.inputValue('#guitar_pickup'),'1');assert.equal(await page.inputValue('#guitar_room'),'0.15');
 // Save/load audio-free physical edits through the existing Reflection workflow.
 await page.selectOption('#factoryPreset','marimba');await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#modelName').value.includes('Marimba'));
 await page.locator('[aria-label="Damping"]').evaluate(e=>{e.value='0.81';e.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -71,4 +84,4 @@ for(const kind of ['modal','waveguide']){
 }
 const hybridSave=page.waitForEvent('download');await page.click('#saveComparison');const hybridFile=await (await hybridSave).path();await page.locator('#import').setInputFiles(hybridFile);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Original slices retained'));assert.equal(await page.inputValue('#mode'),'HybridOriginal');
 await page.screenshot({path:'physical-browser.png',fullPage:true});
-assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, seven live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');
+assert.equal(errors.length,0,errors.join('\n'));await browser.close();console.log('Browser: modal/string source fitting and playable comparison roundtrip, eight live AudioWorklet presets audible, physical edits export/import, source import/analysis, slice preview, synthetic Web MIDI and Hybrid audition passed; no console/page errors.');
