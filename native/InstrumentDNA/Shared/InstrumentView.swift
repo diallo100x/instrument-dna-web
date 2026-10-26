@@ -12,6 +12,20 @@ struct InstrumentView: View {
     @State private var exporting=false
     @State private var document=PresetDocument(data:Data())
     @State private var exportName="Instrument DNA"
+    private var platformVersion:String {
+        #if os(macOS)
+        return "Native Mac instrument v0.4.2 · macOS 12 or later"
+        #else
+        return "Native instrument v0.4.2 · iPadOS 15.4.1 compatible"
+        #endif
+    }
+    private var playingHint:String {
+        #if os(macOS)
+        return "Drag for pitch bend · click keys to focus A W S E D F T G Y H U J K · MIDI/MPE supported"
+        #else
+        return "Slide each finger horizontally · bend range \(Int(model.value(17))) semitones"
+        #endif
+    }
     private var isScalar:Bool{(model.reflection["extensions"] as? [String:Any])?["scalarGuitar"] != nil}
     private let macros=["Attack","Body","Brightness","Harmonics","Noise","Resonance","Dynamics","Articulation","Movement","Drive"]
     private var tabs:[String]{["Reference","Detected note slices","Instrument map","Performance · articulation layers","Main · musical controls","Guitar performance","Era DNA","Physical model","DNA Edit","Tone XY","Behavior XY"]+macros+["Output","About"]}
@@ -49,7 +63,7 @@ struct InstrumentView: View {
                     Picker("Slide mode",selection:$independent){Text("Per note slide").tag(true);Text("Global slide").tag(false)}.pickerStyle(.menu)
                 }.padding(.horizontal) }
                 TouchInstrument(model:model,style:surface,firstNote:firstNote,noteCount:noteCount,independent:independent).frame(height:surfaceHeight).clipShape(RoundedRectangle(cornerRadius:8)).padding(.horizontal,8)
-                HStack{Text("Slide each finger horizontally · bend range \(Int(model.value(17))) semitones").font(.caption2);Spacer();Text("a product of Diallo Beats Audio Lab").font(.system(size:9)).foregroundColor(.secondary)}.padding(.horizontal,10)
+                HStack{Text(playingHint).font(.caption2);Spacer();Text("a product of Diallo Beats Audio Lab").font(.system(size:9)).foregroundColor(.secondary)}.padding(.horizontal,10)
             }
         }.padding(.vertical,8)
     }
@@ -145,7 +159,7 @@ struct InstrumentView: View {
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.4.2 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text(platformVersion).font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}
