@@ -8,7 +8,7 @@ enum MacSmokeTest {
     private static var remote:AVAudioUnit?
     private static var window:NSWindow?
     private static var finished=false
-    static func run(local:MacStandaloneHost,model:InstrumentModel) {
+    static func run(model:InstrumentModel) {
         do {
             let description=AudioComponentDescription(componentType:kAudioUnitType_MusicDevice,componentSubType:0x496e444e,componentManufacturer:0x4462414c,componentFlags:0,componentFlagsMask:0)
             let editor=InstrumentEditorController();_ = editor.view
@@ -24,6 +24,7 @@ enum MacSmokeTest {
             }
             print("INSTRUMENT_DNA_MAC_LOCAL_PASSED");fflush(stdout)
             DispatchQueue.main.asyncAfter(deadline:.now()+90){if !finished{fail("Shipped AUv3 timeout")}}
+            print("INSTRUMENT_DNA_MAC_DISCOVERED \(AVAudioUnitComponentManager.shared().components(matching:description).count)");fflush(stdout)
             AVAudioUnit.instantiate(with:description,options:.loadOutOfProcess){node,error in
                 DispatchQueue.main.async {
                     guard let node=node else{fail("Shipped AUv3: \(String(describing:error))");return}
