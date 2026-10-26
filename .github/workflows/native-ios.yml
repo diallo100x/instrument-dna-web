@@ -39,9 +39,9 @@ jobs:
           for bundle in [app, app / 'PlugIns/InstrumentDNAInstrument.appex']:
               info = plistlib.loads((bundle / 'Info.plist').read_bytes())
               assert info['MinimumOSVersion'] == '15.4', (bundle, info['MinimumOSVersion'])
-              assert info['CFBundleShortVersionString'] == '0.4.1'
-              assert info['CFBundleVersion'] == '8'
-              print(f"{bundle.name}: iOS minimum {info['MinimumOSVersion']}, version 0.4.1 build 8")
+              assert info['CFBundleShortVersionString'] == '0.4.2'
+              assert info['CFBundleVersion'] == '9'
+              print(f"{bundle.name}: iOS minimum {info['MinimumOSVersion']}, version 0.4.2 build 9")
           PY
       - name: Launch standalone app in iPad simulator
         timeout-minutes: 10
@@ -56,6 +56,7 @@ jobs:
           sleep 10
           xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/native-ipad.png"
           xcrun simctl spawn "$DEVICE" launchctl list | grep org.diallobeats.instrumentdna
+          grep -q INSTRUMENT_DNA_AUDIO_RECOVERY_PASSED "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_READY "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_FITTING_TESTS_PASSED "$RUNNER_TEMP/native-app.log"
           grep -q INSTRUMENT_DNA_EDITOR_TESTS_PASSED "$RUNNER_TEMP/native-app.log"

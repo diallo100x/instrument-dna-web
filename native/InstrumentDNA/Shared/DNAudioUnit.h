@@ -4,6 +4,9 @@
 NS_ASSUME_NONNULL_BEGIN
 @interface DNAudioUnit : AUAudioUnit
 @property(nonatomic,readonly) NSData *modelData;
+// Monotonic render diagnostics; no allocations or locks in the audio callback.
+@property(nonatomic,readonly) uint64_t renderedFrames;
+@property(nonatomic,readonly) uint64_t audibleFrames;
 + (nullable NSDictionary*)fitPhysicalPCM:(NSData*)pcm sampleRate:(double)rate midi:(NSInteger)midi kind:(NSString*)kind error:(NSError**)error;
 - (void)touchNote:(NSInteger)slot midi:(NSInteger)midi velocity:(float)velocity down:(BOOL)down;
 - (void)touchBend:(NSInteger)slot semitones:(float)semitones;

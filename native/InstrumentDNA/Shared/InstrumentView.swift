@@ -134,12 +134,18 @@ struct InstrumentView: View {
             }else{Text("Load Scalar Guitar from Instrument map → Factory instruments to use this page.")}
         case "Era DNA":enumPicker("Recording Era",id:21,labels:["None","Vintage bandwidth","Warm bandwidth"]);ParameterSlider(model:model,id:22,title:"Era amount");Text("A separate adjustable bandwidth layer. These are illustrative presets, not measured historical recording chains.").font(.caption)
         case "Output":
+            HStack {
+                Button("Check instrument audio"){model.checkInstrumentAudio()}
+                Button(model.restartAudio == nil ? "Reset voices & check" : "Recover audio"){model.checkInstrumentAudio(recover:true)}
+            }.buttonStyle(.bordered).disabled(model.checkingAudio)
+            Text(model.audioCheck).font(.caption).fixedSize(horizontal:false,vertical:true)
+
             Picker("Reference tuning",selection:Binding(get:{Int(model.value(33))},set:{model.set(33,Float($0))})){Text("A4 = 440 Hz").tag(440);Text("A4 = 432 Hz").tag(432);Text("435 Hz").tag(435);Text("444 Hz").tag(444)}.pickerStyle(.segmented)
             ParameterSlider(model:model,id:14,title:"Master volume")
             ParameterSlider(model:model,id:15,title:"Global pitch wheel",range:-1...1);Button("Center pitch wheel"){model.set(15,0)}
             ParameterSlider(model:model,id:16,title:"Mod wheel · vibrato")
             ParameterSlider(model:model,id:17,title:"Pitch bend range · semitones",range:1...48)
-        default:Text("Native instrument v0.4.1 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
+        default:Text("Native instrument v0.4.2 · iPadOS 15.4.1 compatible").font(.headline);Text("Import audio-free DNA Reflections or playable comparisons made by the web app. The native engine provides touch performance, host MIDI/MPE, parameter automation and host state recall. Native monophonic extraction is available on Reference; independent time stretching and polyphonic separation remain future work. No source recordings are bundled.").font(.callout)
         }}
     }
     private func advance(_ direction:Int){model.stopPreview();let index=tabs.firstIndex(of:tab) ?? 0;tab=tabs[(index+direction+tabs.count)%tabs.count]}

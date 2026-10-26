@@ -13,6 +13,9 @@ struct PresetDocument: FileDocument {
 }
 final class InstrumentModel: ObservableObject {
     let unit: DNAudioUnit
+    var restartAudio: (() throws -> Void)?
+    @Published var audioCheck = "Use Check instrument audio to audition the current model."
+    @Published var checkingAudio = false
     @Published var values: [Int: Float] = [:]
     @Published var name = "Instrument DNA"
     @Published var status = "Ready. Play the touch surface or import a model."
@@ -162,6 +165,36 @@ final class InstrumentModel: ObservableObject {
     var noteEntries: [NoteMap.Entry] {
         let document = (try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any]) ?? [:]
         return NoteMap.entries(document)
+    }
+    func checkInstrumentAudio(recover: Bool = false) {
+        guard !checkingAudio else { return }
+        stopPreview()
+        if recover {
+            unit.panic()
+            do { try restartAudio?() }
+            catch { audioCheck = "Audio restart failed: \(error.localizedDescription)"; return }
+        }
+        let frames = unit.renderedFrames, audible = unit.audibleFrames
+        checkingAudio = true
+        audioCheck = "Auditioning the current instrument…"
+        let midi = Int(value(28)) == 4 ? Int(value(40)) : (noteEntries.first?.midi ?? 60)
+        unit.previewNote(midi, layer: Int(value(20)), source: false, down: true)
+        let generation = previewGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now()+1) { [weak self] in
+            guard let self = self else { return }
+            self.checkingAudio = false
+            guard self.previewGeneration == generation else { self.audioCheck = "Audio check stopped. Try again when ready."; return }
+            self.stopPreview()
+            if self.unit.renderedFrames == frames {
+                self.audioCheck = self.restartAudio == nil
+                    ? "Host is not rendering Instrument DNA. Start the host audio engine/transport and check this instrument track's routing."
+                    : "Native audio is not rendering. Tap Recover audio, then check your output device."
+            } else if self.unit.audibleFrames == audible {
+                self.audioCheck = "Engine is rendering silence. Check Master volume, selected engine, note range and articulation layer."
+            } else {
+                self.audioCheck = "Instrument output detected. If inaudible, check device volume, audio output and the host track's mute/routing."
+            }
+        }
     }
     func auditionGuitar(slide:Bool) {
         stopPreview()

@@ -14,9 +14,9 @@ assert 'Embed App Extensions' in project
 minimums=re.findall(r'"IPHONEOS_DEPLOYMENT_TARGET" = "([^"]+)";',project)
 assert minimums == ['15.4','15.4'], f'unexpected deployment targets: {minimums}'
 assert project.count('"CLANG_WARN_UNGUARDED_AVAILABILITY" = "YES_ERROR";') == 2
-assert app['CFBundleShortVersionString'] == extension['CFBundleShortVersionString'] == '0.4.1'
-assert app['CFBundleVersion'] == extension['CFBundleVersion'] == '8'
-assert component['version'] == 65544
+assert app['CFBundleShortVersionString'] == extension['CFBundleShortVersionString'] == '0.4.2'
+assert app['CFBundleVersion'] == extension['CFBundleVersion'] == '9'
+assert component['version'] == 65545
 for directory in ['DSP','Shared','App','Extension']:
     for file in (root/directory).iterdir():
         if file.suffix in ['.c','.m','.mm','.h','.swift']:

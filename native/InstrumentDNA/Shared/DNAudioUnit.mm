@@ -2,6 +2,7 @@
 #import "DNAKernel.h"
 #import "DNAPhysicalFit.h"
 #include <vector>
+#include <atomic>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -39,6 +40,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
 }
 @end
 @implementation DNAudioUnit {
+ std::atomic<uint64_t> _renderedFrames{0}, _audibleFrames{0};
  DNAKernel *_kernel; AUAudioUnitBus *_output; AUAudioUnitBusArray *_outputs,*_inputs; AUParameterTree *_tree;
  std::vector<float> _left,_right,_interleaved; NSData *_modelData; NSLock *_stateLock;
 }
@@ -93,7 +95,10 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  dna_kernel_set_rate(_kernel,_output.format.sampleRate);return YES;
 }
 - (void)deallocateRenderResources {[self panic];[super deallocateRenderResources];}
+- (uint64_t)renderedFrames {return _renderedFrames.load(std::memory_order_relaxed);}
+- (uint64_t)audibleFrames {return _audibleFrames.load(std::memory_order_relaxed);}
 - (AUInternalRenderBlock)internalRenderBlock {
+ auto rendered=&_renderedFrames;auto audible=&_audibleFrames;
  DNAKernel*k=_kernel;float*l=_left.data(),*r=_right.data(),*packed=_interleaved.data();AUAudioFrameCount maxFrames=HostFrameCapacity;
  return ^AUAudioUnitStatus(AudioUnitRenderActionFlags *flags,const AudioTimeStamp *time,AUAudioFrameCount count,NSInteger bus,AudioBufferList *output,const AURenderEvent *events,AURenderPullInputBlock pull){
   if(bus!=0||count>maxFrames||!l||!r||output->mNumberBuffers<1)return kAudioUnitErr_TooManyFramesToProcess;
@@ -114,6 +119,8 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
    for(uint32_t i=0;i<count;i++){target[2*i]=l[i];target[2*i+1]=r[i];}
    output->mBuffers[0].mData=target;output->mBuffers[0].mDataByteSize=count*2*sizeof(float);
   }else for(UInt32 channel=0;channel<output->mNumberBuffers;channel++){float*source=channel==0?l:r;if(!output->mBuffers[channel].mData)output->mBuffers[channel].mData=source;else if(output->mBuffers[channel].mData!=source)memcpy(output->mBuffers[channel].mData,source,count*sizeof(float));output->mBuffers[channel].mDataByteSize=count*sizeof(float);}
+  uint64_t sounding=0;for(uint32_t i=0;i<count;i++)if(std::fabs(l[i])>0.00001f||std::fabs(r[i])>0.00001f)sounding++;
+  rendered->fetch_add(count,std::memory_order_relaxed);audible->fetch_add(sounding,std::memory_order_relaxed);
   if(flags)*flags &= ~kAudioUnitRenderAction_OutputIsSilence;
   (void)pull;return noErr;
  };

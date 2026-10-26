@@ -18,6 +18,13 @@ int main(){@autoreleasepool {
  assert([unit allocateRenderResourcesAndReturnError:&error]);[unit touchNote:0 midi:69 velocity:1 down:YES];
  float left[512]={0},right[512]={0};struct {UInt32 count;AudioBuffer buffers[2];} output={2,{{1,sizeof(left),left},{1,sizeof(right),right}}};AudioTimeStamp time={0};time.mFlags=kAudioTimeStampSampleTimeValid;AudioUnitRenderActionFlags flags=0;
  auto render=unit.internalRenderBlock;assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);double energy=0;for(float x:left){assert(std::isfinite(x));energy+=x*x;}assert(energy>.001);
+ assert(unit.renderedFrames==512);assert(unit.audibleFrames>0&&unit.audibleFrames<=512);
+ // Reallocation keeps counters monotonic and preserves the loaded instrument.
+ NSData*beforeRestart=unit.modelData;auto framesBeforeRestart=unit.renderedFrames;
+ [unit deallocateRenderResources];assert([unit allocateRenderResourcesAndReturnError:&error]);
+ assert([unit.modelData isEqual:beforeRestart]);[unit touchNote:0 midi:69 velocity:1 down:YES];
+ assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);
+ assert(unit.renderedFrames==framesBeforeRestart+512);
  [unit panic];
  NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe",@"scalar-guitar",@"scalar-guitar-original"];
  for(NSString*name in factory){NSData*json=[NSData dataWithContentsOfFile:[NSString stringWithFormat:@"presets/factory/%@.json",name]];assert(json);assert([unit loadModelData:json error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_ENGINE_MODE].value==4);

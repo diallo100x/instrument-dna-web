@@ -114,3 +114,19 @@ slide timing/offset, body texture, room and target-note audition. Main/Output of
 preset. Named Reflection and host state retain edits; AU addresses 34–40 are
 appended, and the iPadOS 15.4.1 deployment minimum is preserved. See
 `SCALAR_GUITAR.md` for behavior, provenance and limits.
+
+### v0.4.2 · native audio recovery and output checks
+
+On **Output**, **Check instrument audio** auditions the current model and checks
+whether the native render callback is running and producing signal. It distinguishes
+no host rendering from rendered silence and from signal reaching the AU output.
+This cannot confirm speakers, hardware volume or downstream host routing.
+**Reset voices & check** releases stuck voices inside an AU host; the host owns
+its audio engine. In the standalone app, **Recover audio** also restarts and
+reconnects AVAudioEngine without replacing the model or its controls. The editor
+stays available if initial audio-session activation fails, so recovery is reachable.
+The browser-only worklet fallback is unnecessary for the native C DSP engine.
+
+All eight factory instruments, Scalar Guitar controls, 41 AU parameter addresses,
+bundle IDs and the iOS 15.4 deployment floor remain unchanged. This is version
+0.4.2, build 9. Real Koala/iPadOS 15.4.1 acceptance still requires device testing.
