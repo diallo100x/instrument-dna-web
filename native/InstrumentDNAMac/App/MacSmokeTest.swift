@@ -38,6 +38,7 @@ enum MacSmokeTest {
                                     host.contentView?.layoutSubtreeIfNeeded()
                                     precondition(controller.view.bounds.width>0 && controller.view.bounds.height>0)
                                     try render(node.auAudioUnit)
+                                    try renderTrackGraph(node)
                                     finished=true;print("INSTRUMENT_DNA_MAC_EXTENSION_PASSED");fflush(stdout);exit(0)
                                 }catch{fail("Remote render: \(error)")}
                             }
@@ -46,6 +47,30 @@ enum MacSmokeTest {
                 }
             }
         }catch{fail("Local render: \(error)")}
+    }
+    // Same instrument -> track mixer -> master topology used in DBAL Pocket's
+    // Mac AudioEngine, with Apple's offline device replacing the speaker sink.
+    private static func renderTrackGraph(_ node:AVAudioUnit) throws {
+        let engine=AVAudioEngine(),track=AVAudioMixerNode()
+        engine.attach(node);engine.attach(track)
+        engine.connect(node,to:track,format:nil)
+        engine.connect(track,to:engine.mainMixerNode,format:nil)
+        let format=AVAudioFormat(standardFormatWithSampleRate:48000,channels:2)!
+        try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:512)
+        try engine.start()
+        defer{engine.stop()}
+        guard let midi=node.auAudioUnit.scheduleMIDIEventBlock else{throw TestError("Missing track MIDI")}
+        let on:[UInt8]=[0x90,66,100];on.withUnsafeBufferPointer{midi(AUEventSampleTimeImmediate,0,3,$0.baseAddress!)}
+        let buffer=AVAudioPCMBuffer(pcmFormat:format,frameCapacity:512)!
+        var energy=0.0
+        for _ in 0..<64 {
+            let status=try engine.renderOffline(512,to:buffer)
+            guard status == .success else{throw TestError("Track graph offline render: \(status)")}
+            for frame in 0..<Int(buffer.frameLength){let sample=Double(buffer.floatChannelData![0][frame]);guard sample.isFinite else{throw TestError("Nonfinite track output")};energy+=sample*sample}
+        }
+        guard energy>1e-7 else{throw TestError("Silent track graph")}
+        let off:[UInt8]=[0x80,66,0];off.withUnsafeBufferPointer{midi(AUEventSampleTimeImmediate,0,3,$0.baseAddress!)}
+        print("INSTRUMENT_DNA_MAC_TRACK_GRAPH_PASSED");fflush(stdout)
     }
     private static func render(_ unit:AUAudioUnit) throws {
         if unit.renderResourcesAllocated{unit.deallocateRenderResources()}

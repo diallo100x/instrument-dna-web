@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: DSP and model regression tests
         run: |
+          python3 native/InstrumentDNAMac/Tests/project_test.py
           CC=clang native/InstrumentDNA/test.sh
           npm test
       - name: Build universal macOS app and embedded AUv3
@@ -23,8 +24,8 @@ jobs:
           APP="$RUNNER_TEMP/InstrumentDNAMac/Build/Products/Release/InstrumentDNAMac.app"
           EXT="$APP/Contents/PlugIns/InstrumentDNAMacInstrument.appex"
           /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionAttributes:AudioComponents:0:type' "$EXT/Contents/Info.plist" | grep aumu
-          lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/InstrumentDNAMac"
-          lipo -verify_arch arm64 x86_64 "$EXT/Contents/MacOS/InstrumentDNAMacInstrument"
+          lipo "$APP/Contents/MacOS/InstrumentDNAMac" -verify_arch arm64 x86_64
+          lipo "$EXT/Contents/MacOS/InstrumentDNAMacInstrument" -verify_arch arm64 x86_64
           codesign --force --sign - --entitlements native/InstrumentDNAMac/Extension/Instrument.entitlements "$EXT"
           codesign --force --sign - --entitlements native/InstrumentDNAMac/App/App.entitlements "$APP"
           /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
