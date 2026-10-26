@@ -10,6 +10,7 @@ final class MacStandaloneHost:ObservableObject {
     private var node:AVAudioUnit?
     private var midi:DNAMIDIInput?
     init(){
+        fputs("INSTRUMENT_DNA_MAC_STARTING\n",stdout);fflush(stdout)
         let description=AudioComponentDescription(componentType:kAudioUnitType_MusicDevice,componentSubType:0x496e4453,componentManufacturer:0x4462414c,componentFlags:0,componentFlagsMask:0)
         AUAudioUnit.registerSubclass(DNAudioUnit.self,as:description,name:"Diallo Beats Audio Lab: Instrument DNA",version:65545)
         AVAudioUnit.instantiate(with:description,options:[]){[weak self] unit,error in
@@ -34,7 +35,11 @@ final class MacStandaloneHost:ObservableObject {
     }
 }
 @main struct InstrumentDNAMacApp:App {
-    @StateObject private var host=MacStandaloneHost()
+    @StateObject private var host:MacStandaloneHost
+    init(){
+        let audio=MacStandaloneHost()
+        _host=StateObject(wrappedValue:audio)
+    }
     @Environment(\.scenePhase) private var scenePhase
     var body:some Scene {
         WindowGroup("Instrument DNA") {

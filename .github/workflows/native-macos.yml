@@ -35,7 +35,7 @@ jobs:
         timeout-minutes: 4
         run: |
           APP="$RUNNER_TEMP/InstrumentDNAMac/Build/Products/Release/InstrumentDNAMac.app"
-          "$APP/Contents/MacOS/InstrumentDNAMac" --mac-smoke-test > "$RUNNER_TEMP/mac-smoke.log" 2>&1 &
+          open -W -n --stdout "$RUNNER_TEMP/mac-smoke.log" --stderr "$RUNNER_TEMP/mac-smoke-errors.log" "$APP" --args --mac-smoke-test &
           PROBE_PID=$!
           for attempt in $(seq 1 30); do
             if ! kill -0 "$PROBE_PID" 2>/dev/null; then break; fi
@@ -43,6 +43,7 @@ jobs:
           done
           if kill -0 "$PROBE_PID" 2>/dev/null; then kill "$PROBE_PID"; fi
           cat "$RUNNER_TEMP/mac-smoke.log"
+          cat "$RUNNER_TEMP/mac-smoke-errors.log"
           grep -q INSTRUMENT_DNA_MAC_LOCAL_PASSED "$RUNNER_TEMP/mac-smoke.log"
           grep -q INSTRUMENT_DNA_MAC_EXTENSION_PASSED "$RUNNER_TEMP/mac-smoke.log"
       - uses: actions/upload-artifact@v4
@@ -51,4 +52,4 @@ jobs:
           name: InstrumentDNA-macOS-test-results
           path: |
             ${{ runner.temp }}/mac-build.log
-            ${{ runner.temp }}/mac-smoke.log
+            ${{ runner.temp }}/mac-smoke*.log
