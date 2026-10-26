@@ -40,7 +40,8 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
 }
 @end
 @implementation DNAudioUnit {
- std::atomic<uint64_t> _renderedFrames{0}, _audibleFrames{0};
+ std::atomic<uint64_t> _renderedFrames;
+ std::atomic<uint64_t> _audibleFrames;
  DNAKernel *_kernel; AUAudioUnitBus *_output; AUAudioUnitBusArray *_outputs,*_inputs; AUParameterTree *_tree;
  std::vector<float> _left,_right,_interleaved; NSData *_modelData; NSLock *_stateLock;
 }
@@ -55,6 +56,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
 }
 - (instancetype)initWithComponentDescription:(AudioComponentDescription)description options:(AudioComponentInstantiationOptions)options error:(NSError**)error {
  if(!(self=[super initWithComponentDescription:description options:options error:error]))return nil;
+ _renderedFrames.store(0,std::memory_order_relaxed);_audibleFrames.store(0,std::memory_order_relaxed);
  _kernel=dna_kernel_create(44100);if(!_kernel){if(error)*error=Failure(@"Cannot allocate instrument kernel");return nil;}
  _stateLock=[NSLock new];_modelData=[NSData data];self.maximumFramesToRender=4096;_left.resize(HostFrameCapacity);_right.resize(HostFrameCapacity);_interleaved.resize(HostFrameCapacity*2);
  NSLog(@"InstrumentDNA AU initialized: type=%u subtype=%u",description.componentType,description.componentSubType);
