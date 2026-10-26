@@ -34,13 +34,11 @@ class InstrumentEditorController: AUViewController, AUAudioUnitFactory {
         guard isViewLoaded, let unit=unit, hosting==nil else{return}
         let controller=NSHostingController(rootView:InstrumentView(model:InstrumentModel(unit:unit)))
         addChild(controller)
-        controller.view.translatesAutoresizingMaskIntoConstraints=false
+        // AU hosts may resize a detached editor before placing it in a window.
+        // AppKit autoresizing keeps the hosted view in sync immediately.
+        controller.view.frame=view.bounds
+        controller.view.autoresizingMask=[.width,.height]
         view.addSubview(controller.view)
-        NSLayoutConstraint.activate([
-            controller.view.topAnchor.constraint(equalTo:view.topAnchor),
-            controller.view.bottomAnchor.constraint(equalTo:view.bottomAnchor),
-            controller.view.leadingAnchor.constraint(equalTo:view.leadingAnchor),
-            controller.view.trailingAnchor.constraint(equalTo:view.trailingAnchor)])
         hosting=controller
     }
 }

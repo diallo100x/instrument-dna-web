@@ -13,11 +13,12 @@ enum MacSmokeTest {
             let description=AudioComponentDescription(componentType:kAudioUnitType_MusicDevice,componentSubType:0x496e444e,componentManufacturer:0x4462414c,componentFlags:0,componentFlagsMask:0)
             let editor=InstrumentEditorController();_ = editor.view
             let unit=try editor.createAudioUnit(with:description)
-            precondition(editor.children.count==1 && unit.providesUserInterface)
+            guard editor.children.count==1 && unit.providesUserInterface else{fail("Local editor not installed");return}
             for size in [NSSize(width:680,height:540),NSSize(width:1000,height:800)] {
                 editor.view.setFrameSize(size);editor.view.layoutSubtreeIfNeeded()
-                precondition(editor.children[0].view.bounds.size==size)
+                guard editor.children[0].view.bounds.size==size else{fail("Editor resize \(size) produced \(editor.children[0].view.bounds.size)");return}
             }
+            print("INSTRUMENT_DNA_MAC_EDITOR_PASSED");fflush(stdout)
             for preset in InstrumentModel.factoryPresets {
                 model.loadFactory(preset["id"]!)
                 try render(model.unit)
