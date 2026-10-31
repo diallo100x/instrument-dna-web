@@ -33,8 +33,13 @@ final class InstrumentModel: ObservableObject {
     init(unit: DNAudioUnit) {
         self.unit = unit
         for p in unit.parameterTree?.allParameters ?? [] { values[Int(p.address)] = p.value }
-        observer = unit.parameterTree?.token(byAddingParameterObserver: { [weak self] address, value in
-            DispatchQueue.main.async { self?.values[Int(address)] = value }
+        observer = unit.parameterTree?.token(byAddingParameterObserver: { [weak self] address, _ in
+            DispatchQueue.main.async {
+                // A queued callback may describe an older load/edit. Display the
+                // unit's current value instead of replaying stale notifications.
+                guard let self=self,let parameter=self.unit.parameterTree?.parameter(withAddress:address) else{return}
+                self.values[Int(address)] = parameter.value
+            }
         })
         modelObserver = NotificationCenter.default.addObserver(forName:Notification.Name("InstrumentDNAModelChanged"),object:unit,queue:.main){[weak self] _ in self?.refreshModel()}
         refreshModel()
@@ -48,6 +53,7 @@ final class InstrumentModel: ObservableObject {
     func binding(_ id: Int) -> Binding<Float> { Binding(get: { self.value(id) }, set: { self.set(id, $0) }) }
     func refreshModel() {
         guard let document = try? JSONSerialization.jsonObject(with: unit.modelData) as? [String: Any] else { return }
+        for parameter in unit.parameterTree?.allParameters ?? [] {values[Int(parameter.address)] = parameter.value}
         reflection = document["reflection"] as? [String: Any] ?? document
         name = reflection["name"] as? String ?? "Instrument DNA"
     }

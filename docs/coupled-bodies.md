@@ -85,3 +85,13 @@ simulator, offline audio and automated host checks do not establish those passes
 
 To regenerate only this optional bank without overwriting the old factory files:
 `node tools/build-coupled-presets.mjs`.
+
+## Integration correction
+
+The iPad debug fitting acceptance exposed a pre-existing parameter-observer race:
+a notification carrying an older value could execute after a newer load/edit and
+overwrite the SwiftUI value cache. The observer now reads the audio unit's current
+parameter when its main-thread update executes; model refresh also snapshots the
+current parameter values. The fitting smoke test checks both the unit's actual
+engine mode and the displayed cache after queued notifications. The audio DSP
+and original model measurements are unchanged by this correction.
