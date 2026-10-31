@@ -1,9 +1,14 @@
-# Instrument DNA · native Mac AUv3 + standalone 0.4.2
+# Instrument DNA · native Mac AUv3 + standalone 0.4.3
 
-A native AppKit/SwiftUI Mac instrument using the same C DSP, analyzer, eight
-factory presets, Reflection format and 41 AU parameters as the iPad build.
+A native AppKit/SwiftUI Mac instrument using the same C DSP, analyzer, fifteen
+factory presets, Reflection format and 45 AU parameters as the iPad build.
 macOS 12 or later; Release builds include Apple Silicon and Intel architectures.
 The iPad project and iOS 15.4 deployment floor remain separate and unchanged.
+
+The optional coupled-body bank adds vibes, marimba, xylophone, plate/bell,
+membrane/shell, plucked string/body and an experimental air pipe. The previous
+eight presets are unchanged. Physical model exposes four added body controls;
+AU parameter addresses 0–40 retain their original meanings.
 
 ## Build and use in DBAL DAW
 

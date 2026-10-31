@@ -1,8 +1,18 @@
-# Instrument DNA — touch instrument / AUv3
+# Instrument DNA — touch instrument / AUv3 0.4.3
 
 An additive native iPhone/iPad app and embedded AUv3 music instrument. Existing web hybrid/sample and mallet playback remain available. Pre-native baseline: `660dc2afa73c01faa8b8bfb5efffa27a6eb94f40`.
 
 See [native 0.2.1 editor compatibility notes](KOALA_EDITOR_021.md) for the host startup fix and Koala retest steps.
+
+## Current addition: optional coupled-body bank
+
+Version 0.4.3, build 10 adds seven original coupled-body models alongside the
+eight existing factory presets. Existing user models and AU addresses 0–40
+remain supported; four controls are appended for coupling, resonator mix,
+resonator pitch follow and velocity timbre response. Choose a Coupled preset
+under Factory instruments and edit it in the Physical model module.
+These are authored designs, not RipplerX preset conversions or measured replicas.
+The new kind needs this build; older Reflections still load in the new build.
 
 ## Build and install
 
