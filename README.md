@@ -1,3 +1,7 @@
+Instrument DNA web **0.8.3** / native **0.4.3 build 10** adds seven optional,
+original DBAL coupled-body factory models alongside the eight existing sounds.
+See [coupled-body models and compatibility](docs/coupled-bodies.md).
+
 
 ### Physical fitting · v0.7.0 web / v0.3.0 AUv3
 

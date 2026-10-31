@@ -1,3 +1,5 @@
+Current optional coupled-body additions and compatibility notes: [Coupled bodies](coupled-bodies.md). The original physical-engine notes below describe its initial release.
+
 # Physical Instrument DNA v1
 
 Baseline before this update: f502bffbaf3bb73688f8745c2313f44e5146ad15. Existing hybrid/sample, reconstructed and mallet engines remain available.
