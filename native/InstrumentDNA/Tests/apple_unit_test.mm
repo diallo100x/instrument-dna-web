@@ -26,11 +26,21 @@ int main(){@autoreleasepool {
  assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);
  assert(unit.renderedFrames==framesBeforeRestart+512);
  [unit panic];
- NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe",@"scalar-guitar",@"scalar-guitar-original"];
+ NSArray*factory=@[@"marimba",@"kalimba",@"chime",@"djembe",@"nylon-string",@"reed-pipe",@"scalar-guitar",@"scalar-guitar-original",@"coupled-vibes",@"coupled-marimba",@"coupled-xylophone",@"coupled-plate",@"coupled-membrane",@"coupled-string",@"coupled-air-pipe"];
  for(NSString*name in factory){NSData*json=[NSData dataWithContentsOfFile:[NSString stringWithFormat:@"presets/factory/%@.json",name]];assert(json);assert([unit loadModelData:json error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_ENGINE_MODE].value==4);
  [unit touchNote:0 midi:60 velocity:1 down:YES];double audible=0;for(int block=0;block<32;block++){assert(render(&flags,&time,512,0,(AudioBufferList*)&output,NULL,nil)==noErr);for(float x:left){assert(std::isfinite(x));audible+=x*x;}}assert(audible>.00001);
  [unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.83;NSDictionary*physicalState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_DAMPING].value=.1;unit.fullState=physicalState;assert(fabs([unit.parameterTree parameterWithAddress:DNA_DAMPING].value-.83)<.001);
  }
+ // New parameter addresses are appended; older 41-value host states still load.
+ static_assert(DNA_AUDITION_MIDI==40 && DNA_COUPLING==41 && DNA_PARAMETER_COUNT==45,"AU address regression");
+ NSData*coupledData=[NSData dataWithContentsOfFile:@"presets/factory/coupled-vibes.json"];assert([unit loadModelData:coupledData error:&error]);
+ [unit.parameterTree parameterWithAddress:DNA_COUPLING].value=.82;[unit.parameterTree parameterWithAddress:DNA_RESONATOR_FOLLOW].value=0;
+ NSDictionary*coupledState=unit.fullState;[unit.parameterTree parameterWithAddress:DNA_COUPLING].value=0;unit.fullState=coupledState;
+ assert(fabs([unit.parameterTree parameterWithAddress:DNA_COUPLING].value-.82)<.001);assert([unit.parameterTree parameterWithAddress:DNA_RESONATOR_FOLLOW].value==0);
+ NSMutableDictionary*legacyState=[coupledState mutableCopy];legacyState[@"DNAParameters"]=[coupledState[@"DNAParameters"] subarrayWithRange:NSMakeRange(0,41)];unit.fullState=legacyState;
+ assert(fabs([unit.parameterTree parameterWithAddress:DNA_COUPLING].value-.5)<.001);
+ for(int variant=0;variant<3;variant++){NSMutableDictionary*bad=[NSJSONSerialization JSONObjectWithData:coupledData options:NSJSONReadingMutableContainers error:nil];NSMutableDictionary*body=bad[@"extensions"][@"physicalModel"][@"coupledBody"];
+ if(variant==0)body[@"modes"]=@[];if(variant==1)body[@"follow"]=@2;if(variant==2)bad[@"extensions"][@"physicalControls"]=@{@"coupling":@"wrong"};NSError*rejected=nil;assert(![unit loadModelData:[NSJSONSerialization dataWithJSONObject:bad options:0 error:nil] error:&rejected]);assert(rejected);}
  // Analyze actual PCM, load fitted per-anchor models, render, compare and recall host state.
  NSData*scalarData=[NSData dataWithContentsOfFile:@"native/InstrumentDNA/Resources/scalar-guitar.json"];
  assert([unit loadModelData:scalarData error:&error]);assert([unit.parameterTree parameterWithAddress:DNA_REFERENCE_HZ].value==440);
@@ -82,5 +92,5 @@ int main(){@autoreleasepool {
  struct {UInt32 count;AudioBuffer buffers[2];} capacityOutput={2,{{1,0,NULL},{1,0,NULL}}};auto capacityRender=capacityUnit.internalRenderBlock;
  assert(capacityRender(&flags,&time,65536,0,(AudioBufferList*)&capacityOutput,NULL,nil)==noErr);assert(capacityOutput.buffers[0].mDataByteSize==65536*sizeof(float));
  assert(capacityRender(&flags,&time,65537,0,(AudioBufferList*)&capacityOutput,NULL,nil)==kAudioUnitErr_TooManyFramesToProcess);[capacityUnit deallocateRenderResources];
- [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 41 parameters and eight factory instruments, XY/Era recall, host state and audible render passed.");
+ [unit panic];[unit deallocateRenderResources];puts("Apple AU integration: mono/planar/interleaved 48 kHz and 8192-frame host negotiation, PCM modal/string fitting and Hybrid comparison, model/sample import, 45 parameters and fifteen factory instruments, XY/Era recall, host state and audible render passed.");
 }}

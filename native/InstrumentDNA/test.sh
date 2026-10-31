@@ -7,4 +7,6 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined -fn
 ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/kernel-test"
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined -I DSP DSP/DNAPhysical.c DSP/DNAPhysicalFit.c Tests/physical_fit_test.c -lm -o "$BUILD_DIR/fit-test"
 ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/fit-test"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined -I DSP DSP/DNAPhysical.c Tests/coupled_body_test.c -lm -o "$BUILD_DIR/coupled-test"
+ASAN_OPTIONS=detect_leaks=0 "$BUILD_DIR/coupled-test"
 python3 Tests/project_test.py

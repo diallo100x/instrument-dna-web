@@ -10,7 +10,7 @@ for folder in ['Shared','App','Extension']:
  for f in (root/folder).glob('*.swift'):assert str(f.relative_to(root)) in p,f
 for kind in ['App','Extension']:
  info=plistlib.loads((root/kind/'Info.plist').read_bytes())
- assert info['CFBundleShortVersionString']=='0.4.2' and info['CFBundleVersion']=='9'
+ assert info['CFBundleShortVersionString']=='0.4.3' and info['CFBundleVersion']=='10'
  assert 'UIBackgroundModes' not in info
  ent=plistlib.loads((root/kind/('App.entitlements' if kind=='App' else 'Instrument.entitlements')).read_bytes())
  assert ent['com.apple.security.app-sandbox'] and ent['com.apple.security.files.user-selected.read-write']

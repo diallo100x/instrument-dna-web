@@ -1,4 +1,4 @@
-import {selectAnchors} from './analyzer.js?v=0.8.2';
+import {selectAnchors} from './analyzer.js?v=0.8.3';
 
 export const ARTICULATIONS=['sustain','trill','staccato','accent','breathy','alternate'];
 export const articulationOf=event=>ARTICULATIONS.includes(event.articulation)?event.articulation:'sustain';

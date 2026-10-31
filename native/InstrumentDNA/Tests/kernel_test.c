@@ -34,7 +34,7 @@ static void physical_test(void){
   dna_all_notes_off(k);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);
  }
  // All advertised sample rates and high/low pitches remain finite, including bends.
- for(int rate=24000;rate<=192000;rate*=2){DNAPhysicalState*s=malloc(sizeof(*s));dna_physical_reset(s);DNAPhysicalControls c={1,.9,.25,.2,.8,.8,.8,.7,.9,69,0,0,0};for(int i=0;i<rate;i++){float x=dna_physical_tick(s,&m,rate,i<rate/2?65:2093,c);assert(isfinite(x));assert(fabsf(x)<=1);}free(s);}
+ for(int rate=24000;rate<=192000;rate*=2){DNAPhysicalState*s=malloc(sizeof(*s));dna_physical_reset(s);DNAPhysicalControls c={1,.9,.25,.2,.8,.8,.8,.7,.9,69,0,0,0,0,0,0,0};for(int i=0;i<rate;i++){float x=dna_physical_tick(s,&m,rate,i<rate/2?65:2093,c);assert(isfinite(x));assert(fabsf(x)<=1);}free(s);}
 }
 static void scalar_test(void){
  DNAPhysicalModel m={.version=1,.kind=2,.count=8,.ratios={1,2,3,4,5,6,7,8},.gains={1,.5,.6,.3,.4,.1,.25,.15},.hardness=.5,.position=.25,.noise=.08,.decay=5.76};
@@ -51,7 +51,7 @@ static void scalar_test(void){
  dna_note_set(k,0,89,1,1);render(k);assert(energy()<1e-10);dna_kernel_destroy(k);
  DNAPhysicalState*state=malloc(sizeof(*state));assert(state);
  for(int n=40;n<=88;n++)for(int layer=0;layer<6;layer++){
-  dna_physical_reset(state);DNAPhysicalControls c={1,.5,.25,.5,.08,.5,.5,.4,.8,(float)n,(float)layer,0,0};double sum=0;
+  dna_physical_reset(state);DNAPhysicalControls c={1,.5,.25,.5,.08,.5,.5,.4,.8,(float)n,(float)layer,0,0,0,0,0,0};double sum=0;
   for(int i=0;i<4000;i++){float x=dna_physical_tick(state,&m,SR,432*powf(2,(n-69)/12.f),c);assert(isfinite(x)&&fabsf(x)<=1);sum+=x*x;}assert(sum>1e-7);
  }
  free(state);

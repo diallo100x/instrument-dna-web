@@ -15,12 +15,21 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
   if(![physical isKindOfClass:NSDictionary.class]){return NO;}
   for(NSString*key in @[@"version",@"continuous",@"hardness",@"position",@"noise",@"decay"]){if(![physical[key] isKindOfClass:NSNumber.class]){return NO;}}
   if([physical[@"version"] doubleValue]!=1||([physical[@"continuous"] doubleValue]!=0&&[physical[@"continuous"] doubleValue]!=1)){return NO;}
-  DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.measured=[physical[@"origin"] isEqual:@"analyzed"];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:[physical[@"kind"] isEqual:@"additive-string"]?2:-1;
+  DNAPhysicalModel m={0};m.version=[physical[@"version"] intValue];m.measured=[physical[@"origin"] isEqual:@"analyzed"];m.kind=[physical[@"kind"] isEqual:@"modal"]?0:[physical[@"kind"] isEqual:@"waveguide"]?1:[physical[@"kind"] isEqual:@"additive-string"]?2:[physical[@"kind"] isEqual:@"coupled-modal"]?3:-1;
   NSArray*modes=physical[@"modes"];m.count=[modes isKindOfClass:NSArray.class]?(int)modes.count:0;m.continuous=[physical[@"continuous"] boolValue];m.hardness=[physical[@"hardness"] floatValue];m.position=[physical[@"position"] floatValue];m.noise=[physical[@"noise"] floatValue];m.decay=[physical[@"decay"] floatValue];
   if(m.count<1||m.count>16){return NO;}
   for(int i=0;i<m.count;i++){NSDictionary*mode=modes[i];if(![mode isKindOfClass:NSDictionary.class]){m.version=0;break;}if(![mode[@"ratio"] isKindOfClass:NSNumber.class]||![mode[@"gain"] isKindOfClass:NSNumber.class]||![mode[@"t60"] isKindOfClass:NSNumber.class]){m.version=0;break;}m.ratios[i]=[mode[@"ratio"] floatValue];m.gains[i]=[mode[@"gain"] floatValue];m.t60[i]=[mode[@"t60"] floatValue];if(mode[@"phase"]){if(![mode[@"phase"] isKindOfClass:NSNumber.class])return NO;m.phases[i]=[mode[@"phase"] floatValue];}}
   if(physical[@"waveguideTone"]){if(![physical[@"waveguideTone"] isKindOfClass:NSNumber.class])return NO;m.waveguide_tone=[physical[@"waveguideTone"] floatValue];if(m.waveguide_tone==0)return NO;}
   if(physical[@"lossSampleRate"]){if(![physical[@"lossSampleRate"] isKindOfClass:NSNumber.class])return NO;m.loss_rate=[physical[@"lossSampleRate"] floatValue];if(m.loss_rate==0)return NO;}
+  if(m.kind==3){
+   NSDictionary*b=physical[@"coupledBody"];if(![b isKindOfClass:NSDictionary.class])return NO;
+   NSArray*keys=@[@"coupling",@"mix",@"follow",@"velocityResponse",@"referenceHz",@"contactSeconds",@"materialLoss",@"inharmonicity"];
+   for(NSString*key in keys)if(![b[key] isKindOfClass:NSNumber.class])return NO;
+   m.coupling=[b[@"coupling"] floatValue];m.body_mix=[b[@"mix"] floatValue];m.follow=[b[@"follow"] floatValue];m.velocity_response=[b[@"velocityResponse"] floatValue];m.reference_hz=[b[@"referenceHz"] floatValue];m.contact=[b[@"contactSeconds"] floatValue];m.material_loss=[b[@"materialLoss"] floatValue];m.inharmonicity=[b[@"inharmonicity"] floatValue];
+   m.excitation=[b[@"excitation"] isEqual:@"strike"]?0:[b[@"excitation"] isEqual:@"pluck"]?1:[b[@"excitation"] isEqual:@"air"]?2:-1;
+   NSArray*body=b[@"modes"];if(![body isKindOfClass:NSArray.class]||body.count<1||body.count>8)return NO;m.body_count=(int)body.count;
+   for(int i=0;i<m.body_count;i++){NSDictionary*mode=body[i];if(![mode isKindOfClass:NSDictionary.class])return NO;for(NSString*key in @[@"ratio",@"gain",@"t60"])if(![mode[key] isKindOfClass:NSNumber.class])return NO;m.body_ratios[i]=[mode[@"ratio"] floatValue];m.body_gains[i]=[mode[@"gain"] floatValue];m.body_t60[i]=[mode[@"t60"] floatValue];}
+  }
   if(!dna_physical_valid(&m))return NO;*output=m;return YES;
 }
 // AUAudioUnitBus's default format setter rejects stereo interleaved PCM on
@@ -64,7 +73,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  _output.maximumChannelCount=2;_output.supportedChannelCounts=@[@1,@2];
  _outputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeOutput busses:@[_output]];
  _inputs=[[AUAudioUnitBusArray alloc] initWithAudioUnit:self busType:AUAudioUnitBusTypeInput busses:@[]];
- NSArray*names=@[@"Attack",@"Body",@"Brightness",@"Harmonics",@"Noise",@"Resonance",@"Dynamics",@"Articulation",@"Movement",@"Drive",@"Tone X",@"Tone Y",@"Behavior X",@"Behavior Y",@"Volume",@"Global Bend",@"Modulation",@"Bend Range",@"Voice Mode",@"Legato Glide",@"Articulation Layer",@"Recording Era",@"Era Amount",@"Trill Rate",@"Trill Interval",@"Velocity Trill",@"Trill Threshold",@"Note Length",@"Engine Mode",@"Exciter Hardness",@"Strike Position",@"Damping",@"Exciter Noise",@"Reference Tuning Hz",@"Guitar Pickup",@"Vibrato Depth",@"Vibrato Rate",@"Body Texture",@"Room Amount",@"Slide From",@"Audition MIDI"];
+ NSArray*names=@[@"Attack",@"Body",@"Brightness",@"Harmonics",@"Noise",@"Resonance",@"Dynamics",@"Articulation",@"Movement",@"Drive",@"Tone X",@"Tone Y",@"Behavior X",@"Behavior Y",@"Volume",@"Global Bend",@"Modulation",@"Bend Range",@"Voice Mode",@"Legato Glide",@"Articulation Layer",@"Recording Era",@"Era Amount",@"Trill Rate",@"Trill Interval",@"Velocity Trill",@"Trill Threshold",@"Note Length",@"Engine Mode",@"Exciter Hardness",@"Strike Position",@"Damping",@"Exciter Noise",@"Reference Tuning Hz",@"Guitar Pickup",@"Vibrato Depth",@"Vibrato Rate",@"Body Texture",@"Room Amount",@"Slide From",@"Audition MIDI",@"Body Coupling",@"Resonator Mix",@"Resonator Pitch Follow",@"Velocity Timbre Response"];
  NSMutableArray*parameters=[NSMutableArray array];for(int i=0;i<DNA_PARAMETER_COUNT;i++){
   float lo=0,hi=1;if(i==DNA_PITCH)lo=-1;if(i==DNA_BEND_RANGE)hi=48;if(i==DNA_VOICE_MODE||i==DNA_ERA)hi=2;if(i==DNA_GLIDE){lo=10;hi=2000;}if(i==DNA_LAYER)hi=5;if(i==DNA_TRILL_RATE){lo=3;hi=15;}if(i==DNA_TRILL_INTERVAL){lo=1;hi=12;}if(i==DNA_TRILL_THRESHOLD){lo=1;hi=127;}if(i==DNA_NOTE_LENGTH)hi=15;if(i==DNA_ENGINE_MODE)hi=4;if(i==DNA_REFERENCE_HZ){lo=432;hi=444;}if(i==DNA_PICKUP)hi=3;if(i==DNA_VIBRATO_RATE){lo=.5;hi=9;}if(i==DNA_SLIDE_FROM){lo=-12;hi=12;}if(i==DNA_AUDITION_MIDI){lo=40;hi=88;}
   AUParameter*p=[AUParameterTree createParameterWithIdentifier:[NSString stringWithFormat:@"dna%d",i] name:names[i] address:i min:lo max:hi unit:kAudioUnitParameterUnit_Generic unitName:nil flags:kAudioUnitParameterFlag_IsReadable|kAudioUnitParameterFlag_IsWritable|kAudioUnitParameterFlag_CanRamp valueStrings:nil dependentParameters:nil];p.value=dna_parameter_get(_kernel,i);[parameters addObject:p];
@@ -148,7 +157,7 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  NSDictionary*physical=extensions[@"physicalModel"];
  if(physical){
   DNAPhysicalModel m={0};if(!ReadPhysical(physical,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical model");return NO;}
-  NSDictionary*edits=extensions[@"physicalControls"];if(edits){if(![edits isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical controls");return NO;}for(NSString*key in @[@"hardness",@"position",@"damping",@"noise"]){id value=edits[key];if(value&&(![value isKindOfClass:NSNumber.class]||!std::isfinite([value doubleValue])||[value doubleValue]<0||[value doubleValue]>1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical control value");return NO;}}}
+  NSDictionary*edits=extensions[@"physicalControls"];if(edits){if(![edits isKindOfClass:NSDictionary.class]){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical controls");return NO;}for(NSString*key in @[@"hardness",@"position",@"damping",@"noise",@"coupling",@"bodyMix",@"resonatorFollow",@"velocityResponse"]){id value=edits[key];if(value&&(![value isKindOfClass:NSNumber.class]||!std::isfinite([value doubleValue])||[value doubleValue]<0||[value doubleValue]>1)){dna_bank_destroy(bank);if(error)*error=Failure(@"Invalid physical control value");return NO;}}}
   if(!dna_bank_physical(bank,&m)){dna_bank_destroy(bank);if(error)*error=Failure(@"Unsupported or invalid physical model");return NO;}
  }
  NSDictionary*fits=extensions[@"physicalFits"];
@@ -181,6 +190,9 @@ static BOOL ReadPhysical(NSDictionary*physical,DNAPhysicalModel*output){
  NSDictionary*era=reflection[@"era"];NSUInteger eraIndex=[@[@"none",@"vintage",@"tape"] indexOfObject:era[@"recording"]?:@"none"];[_tree parameterWithAddress:DNA_ERA].value=eraIndex<3?eraIndex:0;if([era[@"amount"] isKindOfClass:NSNumber.class])[_tree parameterWithAddress:DNA_ERA_AMOUNT].value=[era[@"amount"] floatValue];
  NSDictionary*native=reflection[@"extensions"][@"nativePerformance"];NSDictionary*nativeMap=@{@"bendRange":@(DNA_BEND_RANGE),@"modulation":@(DNA_MODULATION),@"engineMode":@(DNA_ENGINE_MODE),@"volume":@(DNA_VOLUME)};for(NSString*key in nativeMap)if([native[key] isKindOfClass:NSNumber.class])[_tree parameterWithAddress:[nativeMap[key] unsignedLongLongValue]].value=[native[key] floatValue];
  NSArray*guitarKeys=@[@"pickup",@"vibratoDepth",@"vibratoRate",@"bodyTexture",@"room",@"slideFrom",@"auditionMidi"];for(int i=0;i<7;i++)[_tree parameterWithAddress:DNA_PICKUP+i].value=[(guitar[guitarKeys[i]]?:guitarDefaults[guitarKeys[i]]) floatValue];
+ NSDictionary*body=[physical[@"kind"] isEqual:@"coupled-modal"]?physical[@"coupledBody"]:nil;NSDictionary*bodyEdits=physical?extensions[@"physicalControls"]:nil;
+ NSArray*bodyKeys=@[@"coupling",@"bodyMix",@"resonatorFollow",@"velocityResponse"];NSArray*modelKeys=@[@"coupling",@"mix",@"follow",@"velocityResponse"];NSArray*fallback=@[@.35,@.35,@1,@.65];
+ for(int i=0;i<4;i++)[_tree parameterWithAddress:DNA_COUPLING+i].value=[(bodyEdits[bodyKeys[i]]?:body[modelKeys[i]]?:fallback[i]) floatValue];
  if(physical){NSDictionary*edits=reflection[@"extensions"][@"physicalControls"]?:@{};NSArray*keys=@[@"hardness",@"position",@"damping",@"noise"];for(int i=0;i<4;i++){NSString*key=keys[i];NSNumber*value=edits[key]?:physical[key]?:@.5;[_tree parameterWithAddress:DNA_HARDNESS+i].value=value.floatValue;}}
  __weak DNAudioUnit*weak=self;dispatch_async(dispatch_get_main_queue(),^{if(weak)[NSNotificationCenter.defaultCenter postNotificationName:@"InstrumentDNAModelChanged" object:weak];});
  return YES;

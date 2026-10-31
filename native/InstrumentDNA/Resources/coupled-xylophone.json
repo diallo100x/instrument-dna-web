@@ -1,0 +1,1067 @@
+{
+  "format": "instrument-dna-reflection",
+  "version": "0.6.0",
+  "analyzerVersion": "0.6.0",
+  "created": "2026-10-31T00:00:00.000Z",
+  "name": "DBAL · Coupled Xylophone",
+  "classification": {
+    "name": "Coupled Xylophone",
+    "family": "mallet"
+  },
+  "provenance": [
+    {
+      "source": "Diallo Beats Audio Lab original coupled-body design",
+      "itemId": "coupled-xylophone",
+      "rightsStatus": "original authored preset",
+      "redistributionPermitted": true,
+      "analysisDate": null,
+      "analyzerVersion": null,
+      "modelVersion": "coupled-body-1"
+    }
+  ],
+  "capture": {
+    "density": 3,
+    "range": [
+      36,
+      96
+    ],
+    "analysisProfile": "struck"
+  },
+  "global": {
+    "attackSeconds": {
+      "analyzed": null,
+      "model": 0.005,
+      "offset": 0,
+      "confidence": 0,
+      "unit": "normalized"
+    },
+    "decaySeconds": {
+      "analyzed": null,
+      "model": 0.8,
+      "offset": 0,
+      "confidence": 0,
+      "unit": "normalized"
+    }
+  },
+  "registers": [],
+  "anchors": [
+    {
+      "midi": 36,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 65.40639132514966,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 40,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 82.4068892282175,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 44,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 103.82617439498628,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 48,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 130.8127826502993,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 52,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 164.81377845643496,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 56,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 207.65234878997256,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 60,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 261.6255653005986,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 64,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 329.6275569128699,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 68,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 415.3046975799451,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 72,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 523.2511306011972,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 76,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 659.2551138257398,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 80,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 830.6093951598903,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 84,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 1046.5022612023945,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 88,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 1318.5102276514797,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 92,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 1661.2187903197805,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    },
+    {
+      "midi": 96,
+      "source": "authored coupled-body model",
+      "articulation": "sustain",
+      "start": 0,
+      "end": 0,
+      "confidence": {
+        "pitch": 0,
+        "harmonic": 0,
+        "transient": 0,
+        "resonance": 0,
+        "overall": 0
+      },
+      "parameters": {
+        "f0": {
+          "analyzed": null,
+          "model": 2093.004522404789,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "Hz"
+        },
+        "attackSeconds": {
+          "analyzed": null,
+          "model": 0.005,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "decaySeconds": {
+          "analyzed": null,
+          "model": 0.8,
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        },
+        "harmonicAmplitudes": {
+          "analyzed": null,
+          "model": [
+            1,
+            0.62,
+            0.28,
+            0.12,
+            0.05,
+            0.02
+          ],
+          "offset": 0,
+          "confidence": 0,
+          "unit": "normalized"
+        }
+      },
+      "unsupported": [
+        "reference-audio measurements",
+        "automatic instrument identification",
+        "learned articulation response"
+      ]
+    }
+  ],
+  "performance": {
+    "velocity": {},
+    "articulations": [],
+    "modulation": {},
+    "noteLengthSeconds": null,
+    "layers": {},
+    "selectedArticulation": "sustain",
+    "velocityTrill": false,
+    "trillThreshold": 100,
+    "trillRateHz": 7,
+    "trillInterval": 1,
+    "voiceMode": "poly",
+    "glideMs": 70,
+    "referenceHz": 440
+  },
+  "sampleSlots": [],
+  "era": {
+    "instrument": null,
+    "recording": null,
+    "amount": 0
+  },
+  "macros": {
+    "Attack": 0.5,
+    "Body": 0.5,
+    "Brightness": 0.5,
+    "Harmonics": 0.5,
+    "Noise": 0.5,
+    "Resonance": 0.5,
+    "Dynamics": 0.5,
+    "Articulation": 0.5,
+    "Movement": 0.5,
+    "Drive": 0.5
+  },
+  "xy": {
+    "tone": [
+      0.5,
+      0.5
+    ],
+    "behavior": [
+      0.5,
+      0.5
+    ]
+  },
+  "extensions": {
+    "physicalModel": {
+      "version": 1,
+      "kind": "coupled-modal",
+      "origin": "authored",
+      "referenceMidi": 60,
+      "continuous": false,
+      "hardness": 0.88,
+      "position": 0.23,
+      "noise": 0.08,
+      "decay": 0.8,
+      "modes": [
+        {
+          "ratio": 1,
+          "gain": 1,
+          "t60": 0.8
+        },
+        {
+          "ratio": 3,
+          "gain": 0.62,
+          "t60": 0.35
+        },
+        {
+          "ratio": 6.3,
+          "gain": 0.28,
+          "t60": 0.16
+        },
+        {
+          "ratio": 10.8,
+          "gain": 0.12,
+          "t60": 0.09
+        },
+        {
+          "ratio": 16.6,
+          "gain": 0.05,
+          "t60": 0.05
+        },
+        {
+          "ratio": 24,
+          "gain": 0.02,
+          "t60": 0.03
+        }
+      ],
+      "coupledBody": {
+        "family": "bright bar / body",
+        "excitation": "strike",
+        "referenceHz": 261.6255653005986,
+        "coupling": 0.35,
+        "mix": 0.4,
+        "follow": 1,
+        "velocityResponse": 0.85,
+        "contactSeconds": 0.0005,
+        "materialLoss": 0.12,
+        "inharmonicity": 0.00005,
+        "modes": [
+          {
+            "ratio": 1,
+            "gain": 1,
+            "t60": 0.28
+          },
+          {
+            "ratio": 2,
+            "gain": 0.3,
+            "t60": 0.15
+          },
+          {
+            "ratio": 3,
+            "gain": 0.1,
+            "t60": 0.08
+          }
+        ]
+      }
+    },
+    "nativePerformance": {
+      "engineMode": 4,
+      "bendRange": 2,
+      "volume": 0.7
+    }
+  }
+}

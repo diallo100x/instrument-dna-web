@@ -5,12 +5,44 @@
 static float bound(float v,float lo,float hi){return fminf(hi,fmaxf(lo,v));}
 void dna_physical_reset(DNAPhysicalState*s){memset(s,0,sizeof(*s));s->random=12345;s->last_hz=-1;}
 int dna_physical_valid(const DNAPhysicalModel*m){
- if(!m||m->version!=1||m->kind<0||m->kind>2||m->count<1||m->count>16||m->continuous<0||m->continuous>1)return 0;
+ if(!m||m->version!=1||m->kind<0||m->kind>3||m->count<1||m->count>16||m->continuous<0||m->continuous>1)return 0;
  if(!isfinite(m->hardness)||m->hardness<0||m->hardness>1||!isfinite(m->position)||m->position<0||m->position>1||!isfinite(m->noise)||m->noise<0||m->noise>1||!isfinite(m->decay)||m->decay<.05||m->decay>15)return 0;
  if(m->loss_rate!=0&&(!isfinite(m->loss_rate)||m->loss_rate<8000||m->loss_rate>192000))return 0;
  if(m->waveguide_tone!=0&&(!isfinite(m->waveguide_tone)||m->waveguide_tone<.05f||m->waveguide_tone>.98f))return 0;
  for(int i=0;i<m->count;i++)if(!isfinite(m->ratios[i])||m->ratios[i]<.25||m->ratios[i]>64||!isfinite(m->gains[i])||m->gains[i]<0||m->gains[i]>1||!isfinite(m->t60[i])||m->t60[i]<.02||m->t60[i]>15||!isfinite(m->phases[i])||fabsf(m->phases[i])>PI+1e-6)return 0;
+ if(m->kind==3){
+  if(m->body_count<1||m->body_count>8||m->excitation<0||m->excitation>2||!isfinite(m->reference_hz)||m->reference_hz<20||m->reference_hz>20000)return 0;
+  const float values[]={m->coupling,m->body_mix,m->follow,m->velocity_response,m->contact,m->material_loss,m->inharmonicity};
+  const float lows[]={0,0,0,0,.0001f,0,0},highs[]={1,1,1,1,.02f,2,.01f};
+  for(int i=0;i<7;i++)if(!isfinite(values[i])||values[i]<lows[i]||values[i]>highs[i])return 0;
+  for(int i=0;i<m->body_count;i++)if(!isfinite(m->body_ratios[i])||m->body_ratios[i]<.25f||m->body_ratios[i]>64||!isfinite(m->body_gains[i])||m->body_gains[i]<0||m->body_gains[i]>1||!isfinite(m->body_t60[i])||m->body_t60[i]<.02f||m->body_t60[i]>15)return 0;
+ }
  return 1;
+}
+// Independently authored one-way object-to-body coupling; no feedback path.
+static float coupled_tick(DNAPhysicalState*s,const DNAPhysicalModel*m,float sr,float hz,DNAPhysicalControls c){
+ float v=bound(c.velocity,0,1),hard=bound(c.hardness,0,1),position=bound(c.position,.02f,.98f),damp=bound(c.damping,0,1),rich=bound(c.richness,0,1),noise=bound(c.noise,0,1),response=bound(c.velocity_response,0,1),coupling=bound(c.coupling,0,1),mix=bound(c.body_mix,0,1),follow=bound(c.resonator_follow,0,1);
+ if(s->frame%32==0){
+  float bodyHz=m->reference_hz*powf(hz/m->reference_hz,follow),energy=bound(.35f+.65f*hard+.35f*response*v+.25f*(rich-.5f),.15f,1.35f);
+  for(int group=0;group<2;group++)for(int i=0;i<(group?m->body_count:m->count);i++){
+   float ratio=group?m->body_ratios[i]:m->ratios[i],gain=group?m->body_gains[i]:m->gains[i],decay=group?m->body_t60[i]:m->t60[i];
+   float stiff=group?1:sqrtf((1+m->inharmonicity*ratio*ratio)/(1+m->inharmonicity)),frequency=(group?bodyHz:hz)*ratio*stiff;
+   float *a1=group?s->ba1:s->a1,*a2=group?s->ba2:s->a2,*input=group?s->bgain:s->input_gain,*y1=group?s->by1:s->y1,*y2=group?s->by2:s->y2;
+   if(frequency>=sr*.45f){input[i]=0;y1[i]=y2[i]=0;continue;}
+   float t60=decay*(1.5f-damp)*(1+response*(v-.5f)*.5f)/(1+(group?0:m->material_loss)*sqrtf(ratio)),radius=expf(-6.907755f/(t60*sr)),angle=(float)(2*PI)*frequency/sr;
+   a1[i]=2*radius*cosf(angle);a2[i]=-radius*radius;
+   input[i]=group?2*(1-radius)*sinf(angle)*gain:sinf(angle)*gain*powf(energy,log2f(fmaxf(1,ratio)))*(.2f+.8f*fabsf(sinf((float)PI*position*(i+1))));
+  }
+ }
+ float contact=m->contact*(1.4f-hard)*fmaxf(.25f,1-.65f*response*v),force=0;
+ if(m->excitation==1)force=s->frame==0?1:0;else if(s->age<contact){float shape=sinf((float)PI*(float)s->age/contact);force=2*shape*shape/(contact*sr);}
+ force+=s->exciter*noise*(.04f+.12f*v)*expf(-(float)s->age/fmaxf(.0001f,contact*3));
+ if(m->excitation==2){s->phase[0]=fmod(s->phase[0]+2*PI*hz/sr,2*PI);force+=s->exciter*noise*.012f+(float)sin(s->phase[0])*.002f;}
+ float primary=0,normal=0;
+ for(int i=0;i<m->count;i++){float y=bound(s->a1[i]*s->y1[i]+s->a2[i]*s->y2[i]+force*s->input_gain[i],-8,8);s->y2[i]=s->y1[i];s->y1[i]=y;primary+=y;normal+=m->gains[i];}
+ primary/=fmaxf(1,normal*.6f);float body=0,bodyNormal=0;
+ for(int i=0;i<m->body_count;i++){float y=bound(s->ba1[i]*s->by1[i]+s->ba2[i]*s->by2[i]+primary*coupling*s->bgain[i],-8,8);s->by2[i]=s->by1[i];s->by1[i]=y;body+=y;bodyNormal+=m->body_gains[i];}
+ return primary*(1-.25f*mix)+body/fmaxf(1,bodyNormal)*mix*2;
 }
 float dna_physical_tick(DNAPhysicalState*s,const DNAPhysicalModel*m,double rate,float hz,DNAPhysicalControls c){
  // Controls and pitch are clamped before delay addressing or feedback calculation.
@@ -19,7 +51,8 @@ float dna_physical_tick(DNAPhysicalState*s,const DNAPhysicalModel*m,double rate,
  float cutoff=500+hardness*hardness*14000*(.3f+.7f*velocity),coefficient=1-expf(-(float)(2*PI)*fminf(cutoff,(float)rate*.45f)/(float)rate);
  s->exciter+=coefficient*(noise-s->exciter);
  float output=0;
- if(m->kind==2){
+ if(m->kind==3){output=coupled_tick(s,m,(float)rate,hz,c);
+ }else if(m->kind==2){
   static const float profiles[3][10]={{1,.75,.4,.35,.12,.08,.02,.01,0,0},{.45,.68,.82,.95,.70,.62,.48,.35,.15,.10},{.85,.70,.65,.60,.55,.50,.45,.40,.35,.30}};
   int profile=(int)roundf(bound(c.pickup,0,3));
   if(s->frame==0)for(int i=0;i<m->count;i++)s->phase[i]=m->phases[i];

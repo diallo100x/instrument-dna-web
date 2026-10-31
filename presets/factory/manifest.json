@@ -38,5 +38,47 @@
     "id": "scalar-guitar-original",
     "name": "DBAL · Scalar Guitar · Original",
     "path": "presets/factory/scalar-guitar-original.json"
+  },
+  {
+    "id": "coupled-vibes",
+    "name": "DBAL · Coupled Vibes",
+    "path": "presets/factory/coupled-vibes.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-marimba",
+    "name": "DBAL · Coupled Wooden Marimba",
+    "path": "presets/factory/coupled-marimba.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-xylophone",
+    "name": "DBAL · Coupled Xylophone",
+    "path": "presets/factory/coupled-xylophone.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-plate",
+    "name": "DBAL · Coupled Plate Bell",
+    "path": "presets/factory/coupled-plate.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-membrane",
+    "name": "DBAL · Coupled Membrane & Shell",
+    "path": "presets/factory/coupled-membrane.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-string",
+    "name": "DBAL · Coupled Plucked String & Body",
+    "path": "presets/factory/coupled-string.json",
+    "collection": "Coupled bodies · original DBAL designs"
+  },
+  {
+    "id": "coupled-air-pipe",
+    "name": "DBAL · Coupled Air Pipe (experimental)",
+    "path": "presets/factory/coupled-air-pipe.json",
+    "collection": "Coupled bodies · original DBAL designs"
   }
 ]

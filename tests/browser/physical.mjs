@@ -14,8 +14,8 @@ await page.addInitScript(()=>{
   if(destination instanceof AudioDestinationNode){const analyser=this.context.createAnalyser();analyser.fftSize=2048;this.__meter=analyser;connect.call(this,analyser);connect.call(analyser,destination,...args);window.__testAnalyser=analyser;return destination;}return connect.call(this,destination,...args);
  };
 });
-await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===9);
-const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar','scalar-guitar-original'];
+await page.goto('http://127.0.0.1:8000');await page.waitForFunction(()=>document.querySelector('#factoryPreset').options.length===16);
+const ids=['marimba','kalimba','chime','djembe','nylon-string','reed-pipe','scalar-guitar','scalar-guitar-original','coupled-vibes','coupled-marimba','coupled-xylophone','coupled-plate','coupled-membrane','coupled-string','coupled-air-pipe'];
 for(const id of ids){
  await page.selectOption('#factoryPreset',id);await page.click('#loadFactory');await page.waitForFunction(()=>!document.querySelector('#loadFactory').disabled);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('authored physical model'));
  assert.equal(await page.inputValue('#mode'),'Physical');

@@ -1,21 +1,28 @@
-import {PICKUP_PROFILES,GuitarRoom} from './scalar-controls.js?v=0.8.2';
+import {CoupledBody} from './coupled-body.js?v=0.8.3';
+import {PICKUP_PROFILES,GuitarRoom} from './scalar-controls.js?v=0.8.3';
 // Independently authored physical DSP. See docs/physical-modeling.md for provenance.
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 export function validatePhysicalModel(m){
- if(!m||m.version!==1||!['modal','waveguide','additive-string'].includes(m.kind)||typeof m.continuous!=='boolean'||!Array.isArray(m.modes)||m.modes.length<1||m.modes.length>16)throw Error('Unsupported physical model');
+ if(!m||m.version!==1||!['modal','waveguide','additive-string','coupled-modal'].includes(m.kind)||typeof m.continuous!=='boolean'||!Array.isArray(m.modes)||m.modes.length<1||m.modes.length>16)throw Error('Unsupported physical model');
  if(m.waveguideTone!==undefined&&(!Number.isFinite(m.waveguideTone)||m.waveguideTone<.05||m.waveguideTone>.98))throw Error('Invalid waveguide loss tone');
  if(m.lossSampleRate!==undefined&&(!Number.isFinite(m.lossSampleRate)||m.lossSampleRate<8000||m.lossSampleRate>192000))throw Error('Invalid loss sample rate');
  for(const [key,lo,hi] of [['hardness',0,1],['position',0,1],['noise',0,1],['decay',.05,15]])if(!Number.isFinite(m[key])||m[key]<lo||m[key]>hi)throw Error(`Invalid physical ${key}`);
  if(m.modes.some(x=>x?.phase!==undefined&&(!Number.isFinite(x.phase)||Math.abs(x.phase)>Math.PI)))throw Error('Invalid harmonic phase');
- if(m.modes.some(x=>!x||!Number.isFinite(x.ratio)||x.ratio<.25||x.ratio>64||!Number.isFinite(x.gain)||x.gain<0||x.gain>1||!Number.isFinite(x.t60)||x.t60<.02||x.t60>15))throw Error('Invalid physical modes');return m;
+ if(m.modes.some(x=>!x||!Number.isFinite(x.ratio)||x.ratio<.25||x.ratio>64||!Number.isFinite(x.gain)||x.gain<0||x.gain>1||!Number.isFinite(x.t60)||x.t60<.02||x.t60>15))throw Error('Invalid physical modes');if(m.kind==='coupled-modal')validateCoupledBody(m.coupledBody);return m;
+}
+export function validateCoupledBody(b){
+ if(!b||typeof b!=='object'||!['strike','pluck','air'].includes(b.excitation)||!Array.isArray(b.modes)||b.modes.length<1||b.modes.length>8)throw Error('Invalid coupled body');
+ for(const [key,lo,hi] of [['coupling',0,1],['mix',0,1],['follow',0,1],['velocityResponse',0,1],['referenceHz',20,20000],['contactSeconds',.0001,.02],['materialLoss',0,2],['inharmonicity',0,.01]])if(!Number.isFinite(b[key])||b[key]<lo||b[key]>hi)throw Error(`Invalid coupled ${key}`);
+ if(b.modes.some(x=>!x||!Number.isFinite(x.ratio)||x.ratio<.25||x.ratio>64||!Number.isFinite(x.gain)||x.gain<0||x.gain>1||!Number.isFinite(x.t60)||x.t60<.02||x.t60>15))throw Error('Invalid body modes');return b;
 }
 export class PhysicalVoice {
- constructor(model,rate){this.model=validatePhysicalModel(model);this.rate=rate;this.y1=new Float64Array(16);this.y2=new Float64Array(16);this.a1=new Float64Array(16);this.a2=new Float64Array(16);this.inputGain=new Float64Array(16);this.delay=new Float32Array(8192);this.phase=new Float64Array(16);for(let i=0;i<model.modes.length;i++)this.phase[i]=model.modes[i].phase??0;this.pickLow=0;this.pickHigh=0;this.bodyDc=0;this.body1=0;this.body2=0;this.frame=0;this.age=0;this.write=0;this.random=12345;this.exciter=0;this.loop=0;this.lastSample=0;}
+ constructor(model,rate){this.model=validatePhysicalModel(model);this.rate=rate;this.y1=new Float64Array(16);this.y2=new Float64Array(16);this.a1=new Float64Array(16);this.a2=new Float64Array(16);this.inputGain=new Float64Array(16);this.delay=new Float32Array(8192);this.phase=new Float64Array(16);for(let i=0;i<model.modes.length;i++)this.phase[i]=model.modes[i].phase??0;this.pickLow=0;this.pickHigh=0;this.bodyDc=0;this.body1=0;this.body2=0;this.frame=0;this.age=0;this.write=0;this.random=12345;this.exciter=0;this.loop=0;this.lastSample=0;this.coupled=model.kind==='coupled-modal'?new CoupledBody(model,rate):null;}
  tick(hz,controls={}){
   const m=this.model,sr=this.rate,v=clamp(controls.velocity??.8),hardness=clamp(controls.hardness??m.hardness),position=clamp(controls.position??m.position,.02,.98),damping=clamp(controls.damping??.5),richness=clamp(controls.richness??.5),noiseAmount=clamp(controls.noise??m.noise);
   hz=clamp(hz,40,sr*.4);this.random=(Math.imul(this.random,1664525)+1013904223)>>>0;const noise=this.random/4294967295*2-1;
   const cutoff=500+hardness**2*14000*(.3+.7*v),coefficient=1-Math.exp(-2*Math.PI*Math.min(cutoff,sr*.45)/sr);this.exciter+=coefficient*(noise-this.exciter);let output=0;
-  if(m.kind==='additive-string'){
+  if(m.kind==='coupled-modal'){output=this.coupled.tick(hz,controls,this.exciter);
+  }else if(m.kind==='additive-string'){
    // Authored guitar: pitch-independent register behavior, continuous partial
    // phases, individual decay and a short, velocity-sensitive pick exciter.
    const midi=clamp(controls.midi??69,40,88),register=(midi-66)/26,role=Math.round(controls.articulation??0),muted=role===2,soft=role===4,harmonic=role===5;

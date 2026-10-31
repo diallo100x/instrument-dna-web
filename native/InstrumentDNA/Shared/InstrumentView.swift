@@ -14,9 +14,9 @@ struct InstrumentView: View {
     @State private var exportName="Instrument DNA"
     private var platformVersion:String {
         #if os(macOS)
-        return "Native Mac instrument v0.4.2 · macOS 12 or later"
+        return "Native Mac instrument v0.4.3 · macOS 12 or later"
         #else
-        return "Native instrument v0.4.2 · iPadOS 15.4.1 compatible"
+        return "Native instrument v0.4.3 · iPadOS 15.4.1 compatible"
         #endif
     }
     private var playingHint:String {
@@ -109,6 +109,15 @@ struct InstrumentView: View {
             ParameterSlider(model:model,id:30,title:"Strike / pluck position")
             ParameterSlider(model:model,id:31,title:"Damping")
             ParameterSlider(model:model,id:32,title:"Exciter noise")
+            let body=((model.reflection["extensions"] as? [String:Any])?["physicalModel"] as? [String:Any])?["coupledBody"] as? [String:Any]
+            if body != nil {
+                ParameterSlider(model:model,id:41,title:"Body coupling")
+                ParameterSlider(model:model,id:42,title:"Resonator mix")
+                ParameterSlider(model:model,id:43,title:"Resonator pitch follow")
+                ParameterSlider(model:model,id:44,title:"Velocity timbre response")
+                Text("Optional authored coupled body: excitation drives the object, then its output drives a separate resonator. Follow 0 fixes body resonances; 1 follows played pitch. Original models remain available.").font(.caption)
+                Button("Reset body controls to model baseline"){for (i,key) in ["coupling","mix","follow","velocityResponse"].enumerated(){model.set(41+i,(body?[key] as? NSNumber)?.floatValue ?? [0.35,0.35,1,0.65][i])}}
+            }
             Button("Reset physical controls to model baseline"){let physical=(model.reflection["extensions"] as? [String:Any])?["physicalModel"] as? [String:Any] ?? [:];for (i,key) in ["hardness","position","damping","noise"].enumerated(){model.set(29+i,(physical[key] as? NSNumber)?.floatValue ?? 0.5)}}
         case "DNA Edit":
             Text("Reset returns the user offset to zero while retaining analyzed/model values. Native playback currently applies attack, decay and release offsets; other measured fields remain available as model metadata.").font(.caption)
