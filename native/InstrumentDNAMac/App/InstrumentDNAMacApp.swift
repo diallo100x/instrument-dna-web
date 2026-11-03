@@ -46,6 +46,7 @@ final class MacStandaloneHost:ObservableObject {
     }
 }
 @main struct InstrumentDNAMacApp:App {
+    @State private var workspace = 0
     @StateObject private var host:MacStandaloneHost
     init(){let audio=MacStandaloneHost();_host=StateObject(wrappedValue:audio)}
     @Environment(\.scenePhase) private var scenePhase
@@ -53,11 +54,30 @@ final class MacStandaloneHost:ObservableObject {
         WindowGroup("Instrument DNA") {
             Group {
                 if let model=host.model {
-                    TabView {
-                        InstrumentView(model: model)
-                            .tabItem { Label("Instrument DNA", systemImage: "pianokeys") }
-                        DNAiAnalysisPanel()
-                            .tabItem { Label("DNAi Mapping", systemImage: "waveform.path") }
+                    VStack(spacing: 0) {
+                        HStack(spacing: 14) {
+                            Text("INSTRUMENT DNAi").font(.system(size: 13, weight: .bold))
+                            Picker("Workspace", selection: $workspace) {
+                                Text("Instrument DNA").tag(0)
+                                Text("DNAi Mapping").tag(1)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 320)
+                            Spacer()
+                            Text("DNAi 0.1 • Mac preview")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        Divider()
+                        if workspace == 0 {
+                            InstrumentView(model: model)
+                        } else {
+                            DNAiAnalysisPanel()
+                        }
                     }
                 } else {
                     VStack {
