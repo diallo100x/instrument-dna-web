@@ -52,8 +52,19 @@ final class MacStandaloneHost:ObservableObject {
     var body:some Scene {
         WindowGroup("Instrument DNA") {
             Group {
-                if let model=host.model{InstrumentView(model:model)}
-                else{VStack{Text("Instrument DNA").font(.title);Text(host.status)}.padding()}
+                if let model=host.model {
+                    TabView {
+                        InstrumentView(model: model)
+                            .tabItem { Label("Instrument DNA", systemImage: "pianokeys") }
+                        DNAiAnalysisPanel()
+                            .tabItem { Label("DNAi Mapping", systemImage: "waveform.path") }
+                    }
+                } else {
+                    VStack {
+                        Text("Instrument DNAi").font(.title)
+                        Text(host.status)
+                    }.padding()
+                }
             }.frame(minWidth:680,minHeight:540)
              .onChange(of:scenePhase){phase in if phase != .active{host.model?.unit.panic()}}
         }
