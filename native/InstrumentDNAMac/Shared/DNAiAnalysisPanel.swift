@@ -15,6 +15,20 @@ struct DNAiAnalysisPanel: View {
     @State private var analyzing = false
     @State private var generation = 0
 
+    // Export-only interchange format. This is not AUv3 fullState and does not
+    // imply that DNAi analysis itself is exposed as an Audio Unit.
+    private struct DAWMapping: Encodable {
+        let schema: String
+        let audioComponentType: String
+        let audioComponentSubtype: String
+        let audioComponentManufacturer: String
+        let sourceFilename: String
+        let sampleRate: Double
+        let selectionStartSeconds: Double
+        let selectionEndSeconds: Double
+        let slices: [DNAiSlice]
+    }
+
     private var noteNames: [String] { ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"] }
     private func noteName(_ midi: Int?) -> String {
         guard let midi = midi, (0...127).contains(midi) else { return "Unmapped" }
@@ -51,6 +65,7 @@ struct DNAiAnalysisPanel: View {
                 Text("Detected slices: \(slices.count)")
                 Spacer()
                 Button("Export Mapping JSON…", action: exportMapping).disabled(slices.isEmpty)
+                Button("Export DBAL Mapping…", action: exportDBALMapping).disabled(slices.isEmpty)
             }.font(.caption)
             List {
                 ForEach(slices.indices, id: \.self) { index in
@@ -73,6 +88,8 @@ struct DNAiAnalysisPanel: View {
                     }
                 }
             }.frame(minHeight: 150)
+            Text("Instrument DNA AUv3: aumu/InDN/DbAL. DNAi analysis and DBAL mapping export are standalone tools; DBAL patch import and DNAi AUv3 hosting are not connected yet.")
+                .font(.caption2).foregroundColor(.secondary)
             Text("Mapping analysis only: generated-note synthesis and patch injection are not connected yet.")
                 .font(.caption2).foregroundColor(.secondary)
         }
@@ -136,4 +153,28 @@ struct DNAiAnalysisPanel: View {
             status = "Exported note mapping."
         } catch { status = "Export failed: \(error.localizedDescription)" }
     }
+    private func exportDBALMapping() {
+        guard !slices.isEmpty, let sourceURL = sourceURL else { return }
+        let save = NSSavePanel()
+        save.nameFieldStringValue = "DNAi-DBAL-Mapping.json"
+        save.allowedContentTypes = [.json]
+        guard save.runModal() == .OK, let url = save.url else { return }
+        let mapping = DAWMapping(schema: "dbal.dnai.mapping.v1",
+            audioComponentType: "aumu", audioComponentSubtype: "InDN",
+            audioComponentManufacturer: "DbAL",
+            sourceFilename: sourceURL.lastPathComponent,
+            sampleRate: sampleRate,
+            selectionStartSeconds: startSeconds,
+            selectionEndSeconds: endSeconds,
+            slices: slices)
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(mapping).write(to: url, options: .atomic)
+            status = "Exported DBAL mapping metadata. This does not install an AUv3 preset."
+        } catch {
+            status = "DBAL mapping export failed: \\(error.localizedDescription)"
+        }
+    }
+
 }
