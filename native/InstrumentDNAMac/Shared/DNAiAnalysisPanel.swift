@@ -173,7 +173,7 @@ struct DNAiAnalysisPanel: View {
             try encoder.encode(mapping).write(to: url, options: .atomic)
             status = "Exported DBAL mapping metadata. This does not install an AUv3 preset."
         } catch {
-            status = "DBAL mapping export failed: \\(error.localizedDescription)"
+            status = "DBAL mapping export failed: \(error.localizedDescription)"
         }
     }
 
