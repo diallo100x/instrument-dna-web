@@ -11,6 +11,7 @@ struct DNAiAnalysisPanel: View {
     @State private var endSeconds: Double = 0
     @State private var sampleRate: Double = 44100
     @State private var slices: [DNAiSlice] = []
+    @State private var phraseContext: DNAiPhraseContext?
     @State private var status = "Select a WAV, AIFF or compatible audio file."
     @State private var analyzing = false
     @State private var generation = 0
@@ -27,6 +28,7 @@ struct DNAiAnalysisPanel: View {
         let selectionStartSeconds: Double
         let selectionEndSeconds: Double
         let slices: [DNAiSlice]
+        let phraseContext: DNAiPhraseContext
     }
 
     private var noteNames: [String] { ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"] }
@@ -58,6 +60,13 @@ struct DNAiAnalysisPanel: View {
                     Slider(value: $endSeconds, in: 0...max(duration, 0.01))
                         .onChange(of: endSeconds) { value in if value < startSeconds { startSeconds = value } }
                 }
+            }
+            if let context = phraseContext {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Phrase-first mapping").font(.subheadline).bold()
+                    Text("First: \(noteName(context.firstSoundingMidi)) · Lowest: \(noteName(context.lowestSoundingMidi)) · Anchor: \(noteName(context.phraseAnchorMidi))")
+                    Text("Tonic suggestion: \(context.tonicPitchClassSuggestion.map { noteNames[$0] } ?? "unknown") (\(Int(context.tonicConfidence * 100))% confidence). Not a confirmed key.")
+                }.font(.caption).foregroundColor(.secondary)
             }
             Text(status).font(.caption).foregroundColor(.secondary)
             if analyzing { ProgressView().progressViewStyle(.linear) }
@@ -110,6 +119,7 @@ struct DNAiAnalysisPanel: View {
             startSeconds = 0
             endSeconds = duration
             slices = []
+            phraseContext = nil
             status = "Ready to analyze \(String(format: "%.2f", duration)) seconds."
         } catch {
             status = "Audio import failed: \(error.localizedDescription)"
@@ -133,6 +143,7 @@ struct DNAiAnalysisPanel: View {
                 switch result {
                 case .success(let found):
                     slices = found
+                    phraseContext = DNAiPhraseIntelligence.summarize(found, sampleRate: sampleRate)
                     status = "Mapped \(found.filter { $0.midiNote != nil }.count) of \(found.count) detected slices. Correct keys below."
                 case .failure(let error):
                     status = "Analysis failed: \(error.localizedDescription)"
@@ -155,6 +166,7 @@ struct DNAiAnalysisPanel: View {
     }
     private func exportDBALMapping() {
         guard !slices.isEmpty, let sourceURL = sourceURL else { return }
+        let context = DNAiPhraseIntelligence.summarize(slices, sampleRate: sampleRate)
         let save = NSSavePanel()
         save.nameFieldStringValue = "DNAi-DBAL-Mapping.json"
         save.allowedContentTypes = [.json]
@@ -166,7 +178,7 @@ struct DNAiAnalysisPanel: View {
             sampleRate: sampleRate,
             selectionStartSeconds: startSeconds,
             selectionEndSeconds: endSeconds,
-            slices: slices)
+            slices: slices, phraseContext: context)
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
